@@ -4,13 +4,23 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-import pandas as pd
+from pydantic import BaseModel
+
 from typing import Optional, List, Dict, Any
 import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import sqlite3
+
+# 定义请求模型
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserRegister(BaseModel):
+    username: str
+    password: str
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -22,7 +32,12 @@ app = FastAPI(
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # 前端地址
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],  # 前端地址
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -97,24 +112,24 @@ async def health_check():
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
 @app.post("/api/register")
-async def register(username: str, password: str):
+async def register(user_data: UserRegister):
     """用户注册"""
     try:
         # 检查用户名是否已存在
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT id FROM users WHERE username = :username"), {"username": username})
+            result = conn.execute(text("SELECT id FROM users WHERE username = :username"), {"username": user_data.username})
             if result.fetchone():
                 raise HTTPException(status_code=409, detail="用户名已存在")
             
             # 加密密码
-            password_hash = get_password_hash(password)
+            password_hash = get_password_hash(user_data.password)
             
             # 插入新用户
             conn.execute(text("INSERT INTO users (username, password_hash) VALUES (:username, :password_hash)"), 
-                        {"username": username, "password_hash": password_hash})
+                        {"username": user_data.username, "password_hash": password_hash})
             conn.commit()
             
-        return {"message": "注册成功", "username": username}
+        return {"message": "注册成功", "username": user_data.username}
         
     except HTTPException:
         raise
@@ -122,24 +137,24 @@ async def register(username: str, password: str):
         raise HTTPException(status_code=500, detail=f"注册失败: {str(e)}")
 
 @app.post("/api/login")
-async def login(username: str, password: str):
+async def login(user_data: UserLogin):
     """用户登录"""
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT password_hash FROM users WHERE username = :username"), {"username": username})
+            result = conn.execute(text("SELECT password_hash FROM users WHERE username = :username"), {"username": user_data.username})
             user = result.fetchone()
             
             if not user:
                 raise HTTPException(status_code=401, detail="用户名或密码错误")
             
             password_hash = user[0]
-            if not verify_password(password, password_hash):
+            if not verify_password(user_data.password, password_hash):
                 raise HTTPException(status_code=401, detail="用户名或密码错误")
             
             # 创建访问令牌
-            access_token = create_access_token(data={"sub": username})
+            access_token = create_access_token(data={"sub": user_data.username})
             
-        return {"access_token": access_token, "token_type": "bearer", "username": username}
+        return {"access_token": access_token, "token_type": "bearer", "username": user_data.username}
         
     except HTTPException:
         raise
@@ -415,6 +430,301 @@ async def export_data(
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"导出失败: {str(e)}")
+
+@app.get("/api/available-years")
+async def get_available_years():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT DISTINCT from_propublica_fy_ending_month_year_12_2023 as year
+                FROM nonprofits 
+                WHERE from_propublica_fy_ending_month_year_12_2023 IS NOT NULL
+                ORDER BY year DESC
+            """))
+            years = [row[0] for row in result.fetchall()]
+            return {"years": years}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/available-states")
+async def get_available_states(year: str = Query(None)):
+    try:
+        with engine.connect() as conn:
+            if year:
+                result = conn.execute(text("""
+                    SELECT DISTINCT st as state, COUNT(*) as count
+                    FROM nonprofits 
+                    WHERE st IS NOT NULL AND from_propublica_fy_ending_month_year_12_2023 = :year
+                    GROUP BY st
+                    ORDER BY st
+                """), {"year": year})
+            else:
+                result = conn.execute(text("""
+                    SELECT DISTINCT st as state, COUNT(*) as count
+                    FROM nonprofits 
+                    WHERE st IS NOT NULL
+                    GROUP BY st
+                    ORDER BY st
+                """))
+            states = [{"state": row[0], "count": row[1]} for row in result.fetchall()]
+            return {"states": states}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/available-cities")
+async def get_available_cities(year: str = Query(None), state: str = Query(None)):
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT DISTINCT city, COUNT(*) as count
+                FROM nonprofits 
+                WHERE city IS NOT NULL
+            """
+            params = {}
+            
+            if year:
+                query += " AND from_propublica_fy_ending_month_year_12_2023 = :year"
+                params["year"] = year
+            
+            if state:
+                query += " AND st = :state"
+                params["state"] = state
+                
+            query += " GROUP BY city ORDER BY city"
+            
+            result = conn.execute(text(query), params)
+            cities = [{"city": row[0], "count": row[1]} for row in result.fetchall()]
+            return {"cities": cities}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/field-info")
+async def get_field_info():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info(nonprofits)"))
+            fields = []
+            
+            for row in result.fetchall():
+                field_name = row[1]
+                field_type = row[2]
+                
+                # 创建字段的用户友好名称
+                display_name = format_field_name(field_name)
+                category = categorize_field(field_name)
+                
+                fields.append({
+                    "field_name": field_name,
+                    "display_name": display_name,
+                    "category": category,
+                    "type": field_type
+                })
+            
+            return {"fields": fields}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/step1-filter")
+async def step1_filter(filter_data: dict):
+    try:
+        with engine.connect() as conn:
+            query = "SELECT * FROM nonprofits WHERE 1=1"
+            params = {}
+            
+            # 年份筛选
+            if filter_data.get("year"):
+                query += " AND from_propublica_fy_ending_month_year_12_2023 = :year"
+                params["year"] = filter_data["year"]
+            
+            # 地理位置筛选
+            if filter_data.get("state"):
+                query += " AND st = :state"
+                params["state"] = filter_data["state"]
+            
+            if filter_data.get("city"):
+                query += " AND city = :city"
+                params["city"] = filter_data["city"]
+            
+            # 财务规模筛选
+            if filter_data.get("min_revenue"):
+                query += " AND CAST(part_i_summary_12_total_revenue_cy AS REAL) >= :min_revenue"
+                params["min_revenue"] = filter_data["min_revenue"]
+            
+            if filter_data.get("max_revenue"):
+                query += " AND CAST(part_i_summary_12_total_revenue_cy AS REAL) <= :max_revenue"
+                params["max_revenue"] = filter_data["max_revenue"]
+            
+            if filter_data.get("min_assets"):
+                query += " AND CAST(part_i_summary_20_total_assets_cy AS REAL) >= :min_assets"
+                params["min_assets"] = filter_data["min_assets"]
+            
+            if filter_data.get("max_assets"):
+                query += " AND CAST(part_i_summary_20_total_assets_cy AS REAL) <= :max_assets"
+                params["max_assets"] = filter_data["max_assets"]
+            
+            # 运营规模筛选
+            if filter_data.get("min_ilu"):
+                query += " AND CAST(part_x_balance_sheet_ilu AS REAL) >= :min_ilu"
+                params["min_ilu"] = filter_data["min_ilu"]
+            
+            if filter_data.get("min_alu"):
+                query += " AND CAST(part_x_balance_sheet_alu AS REAL) >= :min_alu"
+                params["min_alu"] = filter_data["min_alu"]
+            
+            # 执行查询
+            result = conn.execute(text(query), params)
+            rows = result.fetchall()
+            columns = list(result.keys())
+            
+            # 格式化结果
+            organizations = []
+            for row in rows:
+                org = dict(zip(columns, row))
+                organizations.append({
+                    "ein": org.get("form_990_top_block_box_d_ein_cy"),
+                    "name": org.get("campus", "Unknown"),
+                    "city": org.get("city"),
+                    "state": org.get("st"),
+                    "total_revenue": org.get("part_i_summary_12_total_revenue_cy"),
+                    "total_assets": org.get("part_i_summary_20_total_assets_cy"),
+                    "ilu": org.get("part_x_balance_sheet_ilu"),
+                    "alu": org.get("part_x_balance_sheet_alu")
+                })
+            
+            return {
+                "organizations": organizations,
+                "total_count": len(organizations),
+                "filter_summary": filter_data
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/step2-filter")
+async def step2_filter(filter_data: dict):
+    try:
+        with engine.connect() as conn:
+            selected_organizations = filter_data.get("selected_organizations", [])
+            search_type = filter_data.get("search_type", "name")  # "name" or "ein"
+            search_terms = filter_data.get("search_terms", [])
+            
+            if filter_data.get("select_all"):
+                # 如果选择全部，返回第一步的结果
+                return await step1_filter(filter_data.get("step1_filters", {}))
+            
+            if search_type == "ein":
+                placeholders = ",".join([":ein_" + str(i) for i in range(len(search_terms))])
+                query = f"""
+                    SELECT * FROM nonprofits 
+                    WHERE form_990_top_block_box_d_ein_cy IN ({placeholders})
+                """
+                params = {f"ein_{i}": term for i, term in enumerate(search_terms)}
+            else:
+                # 按名称搜索
+                placeholders = ",".join([":name_" + str(i) for i in range(len(search_terms))])
+                query = f"""
+                    SELECT * FROM nonprofits 
+                    WHERE campus IN ({placeholders})
+                """
+                params = {f"name_{i}": term for i, term in enumerate(search_terms)}
+            
+            result = conn.execute(text(query), params)
+            rows = result.fetchall()
+            columns = list(result.keys())
+            
+            organizations = []
+            for row in rows:
+                org = dict(zip(columns, row))
+                organizations.append({
+                    "ein": org.get("form_990_top_block_box_d_ein_cy"),
+                    "name": org.get("campus", "Unknown"),
+                    "city": org.get("city"),
+                    "state": org.get("st"),
+                    "total_revenue": org.get("part_i_summary_12_total_revenue_cy"),
+                    "total_assets": org.get("part_i_summary_20_total_assets_cy")
+                })
+            
+            return {
+                "organizations": organizations,
+                "total_count": len(organizations)
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/final-query")
+async def final_query(query_data: dict):
+    try:
+        with engine.connect() as conn:
+            selected_eins = query_data.get("selected_eins", [])
+            selected_fields = query_data.get("selected_fields", [])
+            
+            if not selected_eins:
+                raise HTTPException(status_code=400, detail="No organizations selected")
+            
+            if not selected_fields:
+                selected_fields = ["form_990_top_block_box_d_ein_cy", "campus", "city", "st"]
+            
+            # 构建查询
+            fields_str = ", ".join(selected_fields)
+            placeholders = ",".join([":ein_" + str(i) for i in range(len(selected_eins))])
+            
+            query = f"""
+                SELECT {fields_str}
+                FROM nonprofits 
+                WHERE form_990_top_block_box_d_ein_cy IN ({placeholders})
+            """
+            
+            params = {f"ein_{i}": ein for i, ein in enumerate(selected_eins)}
+            result = conn.execute(text(query), params)
+            rows = result.fetchall()
+            columns = list(result.keys())
+            
+            data = [dict(zip(columns, row)) for row in rows]
+            
+            return {
+                "data": data,
+                "columns": columns,
+                "total_count": len(data)
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 辅助函数
+def format_field_name(field_name):
+    """将字段名转换为用户友好的显示名称"""
+    # 移除前缀，格式化名称
+    name = field_name.replace("_", " ").title()
+    
+    # 特殊处理常见缩写
+    replacements = {
+        "Cy": "Current Year",
+        "Py": "Previous Year",
+        "Ein": "EIN",
+        "Ceo": "CEO",
+        "Cfo": "CFO",
+        "Ilu": "Independent Living Units",
+        "Alu": "Assisted Living Units",
+        "Ncb": "Nursing Care Beds"
+    }
+    
+    for old, new in replacements.items():
+        name = name.replace(old, new)
+    
+    return name
+
+def categorize_field(field_name):
+    """将字段按类别分组"""
+    if any(x in field_name for x in ["revenue", "income", "grants", "expenses"]):
+        return "财务数据"
+    elif any(x in field_name for x in ["compensation", "salary", "ceo", "cfo"]):
+        return "薪酬数据"
+    elif any(x in field_name for x in ["assets", "liabilities", "balance"]):
+        return "资产负债"
+    elif any(x in field_name for x in ["ilu", "alu", "ncb", "units"]):
+        return "运营数据"
+    elif any(x in field_name for x in ["city", "st", "state", "ein"]):
+        return "基本信息"
+    else:
+        return "其他"
 
 if __name__ == "__main__":
     import uvicorn

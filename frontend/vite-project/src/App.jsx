@@ -6,11 +6,15 @@ import {
   BarChartOutlined, 
   BookOutlined, 
   QuestionCircleOutlined,
-  EyeOutlined 
+  EyeOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
 import './App.css';
 
 // 导入页面组件
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import QueryForm from './pages/QueryForm';
 import DataPreview from './pages/DataPreview';
 import VariableDescriptions from './pages/VariableDescriptions';
@@ -19,90 +23,124 @@ import KnowledgeBase from './pages/KnowledgeBase';
 
 const { Header, Content, Sider } = Layout;
 
-function App() {
+// 主应用布局组件
+function MainAppLayout() {
   const menuItems = [
     {
-      key: '/',
+      key: '/dashboard',
       icon: <SearchOutlined />,
       label: '数据查询',
     },
     {
-      key: '/data-preview',
+      key: '/dashboard/data-preview',
       icon: <EyeOutlined />,
       label: '数据预览',
     },
     {
-      key: '/variable-descriptions',
+      key: '/dashboard/variable-descriptions',
       icon: <BookOutlined />,
       label: '变量描述',
     },
     {
-      key: '/manuals',
+      key: '/dashboard/manuals',
       icon: <BookOutlined />,
       label: '使用手册',
     },
     {
-      key: '/knowledge-base',
+      key: '/dashboard/knowledge-base',
       icon: <QuestionCircleOutlined />,
       label: '知识库',
     },
+    {
+      key: '/logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+    },
   ];
 
+  const handleMenuClick = ({ key }) => {
+    if (key === '/logout') {
+      localStorage.removeItem('access_token');
+      window.location.href = '/';
+    } else {
+      window.location.href = key;
+    }
+  };
+
   return (
-    <Router>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header style={{ 
-          background: '#001529', 
-          padding: '0 24px',
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ 
+        background: '#001529', 
+        padding: '0 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ 
+          color: 'white', 
+          fontSize: '20px', 
+          fontWeight: 'bold',
           display: 'flex',
-          alignItems: 'center'
+          alignItems: 'center',
+          gap: '12px'
         }}>
-          <div style={{ 
-            color: 'white', 
-            fontSize: '20px', 
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <BarChartOutlined />
-            IRS非营利组织数据平台
-          </div>
-        </Header>
+          <BarChartOutlined />
+          IRS非营利组织数据平台
+        </div>
+        <div style={{ color: 'white', fontSize: '14px' }}>
+          欢迎使用数据平台
+        </div>
+      </Header>
+      
+      <Layout>
+        <Sider width={250} style={{ background: '#fff' }}>
+          <Menu
+            mode="inline"
+            defaultSelectedKeys={['/dashboard']}
+            style={{ height: '100%', borderRight: 0 }}
+            items={menuItems}
+            onClick={handleMenuClick}
+          />
+        </Sider>
         
-        <Layout>
-          <Sider width={250} style={{ background: '#fff' }}>
-            <Menu
-              mode="inline"
-              defaultSelectedKeys={['/']}
-              style={{ height: '100%', borderRight: 0 }}
-              items={menuItems}
-              onClick={({ key }) => {
-                window.location.href = key;
-              }}
-            />
-          </Sider>
-          
-          <Layout style={{ padding: '24px' }}>
-            <Content style={{ 
-              background: '#fff', 
-              padding: 24, 
-              margin: 0, 
-              minHeight: 280,
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-            }}>
-              <Routes>
-                <Route path="/" element={<QueryForm />} />
-                <Route path="/data-preview" element={<DataPreview />} />
-                <Route path="/variable-descriptions" element={<VariableDescriptions />} />
-                <Route path="/manuals" element={<ManualsPage />} />
-                <Route path="/knowledge-base" element={<KnowledgeBase />} />
-              </Routes>
-            </Content>
-          </Layout>
+        <Layout style={{ padding: '24px' }}>
+          <Content style={{ 
+            background: '#fff', 
+            padding: 24, 
+            margin: 0, 
+            minHeight: 280,
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <Routes>
+              <Route path="/dashboard" element={<QueryForm />} />
+              <Route path="/dashboard/data-preview" element={<DataPreview />} />
+              <Route path="/dashboard/variable-descriptions" element={<VariableDescriptions />} />
+              <Route path="/dashboard/manuals" element={<ManualsPage />} />
+              <Route path="/dashboard/knowledge-base" element={<KnowledgeBase />} />
+            </Routes>
+          </Content>
         </Layout>
       </Layout>
+    </Layout>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* 公共页面 */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        
+        {/* 需要认证的页面 - 包装在主应用布局中 */}
+        <Route path="/dashboard/*" element={<MainAppLayout />} />
+        
+        {/* 重定向根路径到首页 */}
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
     </Router>
   );
 }
