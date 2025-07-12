@@ -114,7 +114,7 @@ def run_data_pipeline():
     # 获取脚本所在目录的绝对路径
     script_dir = os.path.dirname(os.path.abspath(__file__))
     csv_file_path = os.path.join(script_dir, 'data', 'nonprofits_100.csv')
-    db_path = os.path.join(script_dir, 'irs.db')
+    db_path = os.path.join(script_dir, 'irs.db')  # 数据库文件在backend目录
     table_name = 'nonprofits'
 
     print("=== 开始执行四行语义化表头数据管道 ===")

@@ -15,6 +15,7 @@ import './App.css';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import HomePage from './pages/HomePage';
 import QueryForm from './pages/QueryForm';
 import DataPreview from './pages/DataPreview';
 import VariableDescriptions from './pages/VariableDescriptions';
@@ -29,32 +30,37 @@ function MainAppLayout() {
     {
       key: '/dashboard',
       icon: <SearchOutlined />,
-      label: '数据查询',
+      label: 'Home',
+    },
+    {
+      key: '/dashboard/query',
+      icon: <SearchOutlined />,
+      label: 'Data Query',
     },
     {
       key: '/dashboard/data-preview',
       icon: <EyeOutlined />,
-      label: '数据预览',
+      label: 'Data Preview',
     },
     {
       key: '/dashboard/variable-descriptions',
       icon: <BookOutlined />,
-      label: '变量描述',
+      label: 'Variable Descriptions',
     },
     {
       key: '/dashboard/manuals',
       icon: <BookOutlined />,
-      label: '使用手册',
+      label: 'User Manuals',
     },
     {
       key: '/dashboard/knowledge-base',
       icon: <QuestionCircleOutlined />,
-      label: '知识库',
+      label: 'Knowledge Base',
     },
     {
       key: '/logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: 'Logout',
     },
   ];
 
@@ -85,10 +91,10 @@ function MainAppLayout() {
           gap: '12px'
         }}>
           <BarChartOutlined />
-          IRS非营利组织数据平台
+          Financial Benchmarking Platform
         </div>
         <div style={{ color: 'white', fontSize: '14px' }}>
-          欢迎使用数据平台
+          Welcome to the Data Platform
         </div>
       </Header>
       
@@ -113,7 +119,8 @@ function MainAppLayout() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}>
             <Routes>
-              <Route path="/dashboard" element={<QueryForm />} />
+              <Route path="/dashboard" element={<HomePage />} />
+              <Route path="/dashboard/query" element={<QueryForm />} />
               <Route path="/dashboard/data-preview" element={<DataPreview />} />
               <Route path="/dashboard/variable-descriptions" element={<VariableDescriptions />} />
               <Route path="/dashboard/manuals" element={<ManualsPage />} />

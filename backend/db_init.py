@@ -5,8 +5,9 @@ def init_database():
     """
     初始化数据库，创建 users 表（如果不存在）
     """
-    # 数据库文件路径
-    db_path = 'irs.db'
+    # 数据库文件路径 - 使用绝对路径确保在backend目录
+    import os
+    db_path = os.path.join(os.path.dirname(__file__), 'irs.db')
     
     try:
         # 连接到数据库（如果不存在会自动创建）

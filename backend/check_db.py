@@ -1,41 +1,60 @@
 import sqlite3
 
-def check_database():
-    try:
-        conn = sqlite3.connect('irs.db')
-        cursor = conn.cursor()
+def check_database_structure():
+    conn = sqlite3.connect('irs.db')
+    cursor = conn.cursor()
+    
+    # Get all columns
+    cursor.execute('PRAGMA table_info(nonprofits)')
+    columns = cursor.fetchall()
+    
+    print("All columns in nonprofits table:")
+    for col in columns:
+        print(f"  {col[1]} ({col[2]})")
+    
+    print("\n" + "="*50)
+    
+    # Find time-related fields
+    time_keywords = ['year', 'date', 'fiscal', 'period', 'end', 'start']
+    time_fields = []
+    
+    for col in columns:
+        col_name = col[1].lower()
+        if any(keyword in col_name for keyword in time_keywords):
+            time_fields.append(col)
+    
+    print("Time-related fields:")
+    for col in time_fields:
+        print(f"  {col[1]} ({col[2]})")
+    
+    # Check sample data for time fields
+    if time_fields:
+        print("\nSample data for time fields:")
+        sample_fields = [col[1] for col in time_fields[:3]]  # First 3 time fields
+        sample_query = f"SELECT {', '.join(sample_fields)} FROM nonprofits LIMIT 5"
+        cursor.execute(sample_query)
+        sample_data = cursor.fetchall()
         
-        # 检查表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        print("数据库中的表:", tables)
-        
-        # 检查非营利组织数据
-        if ('nonprofits',) in tables:
-            cursor.execute("SELECT COUNT(*) FROM nonprofits")
-            count = cursor.fetchone()[0]
-            print(f"非营利组织记录数: {count}")
-            
-            # 显示前几条记录的结构
-            cursor.execute("SELECT * FROM nonprofits LIMIT 1")
-            sample = cursor.fetchone()
-            if sample:
-                cursor.execute("PRAGMA table_info(nonprofits)")
-                columns = cursor.fetchall()
-                print(f"字段数: {len(columns)}")
-                print("前几个字段:", [col[1] for col in columns[:5]])
-        
-        # 检查用户表
-        if ('users',) in tables:
-            cursor.execute("SELECT COUNT(*) FROM users")
-            user_count = cursor.fetchone()[0]
-            print(f"用户数: {user_count}")
-            
-        conn.close()
-        print("数据库检查完成")
-        
-    except Exception as e:
-        print(f"数据库检查失败: {e}")
+        for row in sample_data:
+            print(f"  {dict(zip(sample_fields, row))}")
+    
+    # Let's also check for the fiscal year column specifically
+    print("\n" + "="*50)
+    print("Looking for fiscal year column...")
+    
+    # Check a few sample rows to see the actual data
+    cursor.execute("SELECT * FROM nonprofits LIMIT 3")
+    sample_rows = cursor.fetchall()
+    column_names = [description[0] for description in cursor.description]
+    
+    print("Sample data from first 3 rows:")
+    for i, row in enumerate(sample_rows):
+        print(f"\nRow {i+1}:")
+        for j, value in enumerate(row):
+            if j < 10:  # Show first 10 columns
+                print(f"  {column_names[j]}: {value}")
+    
+    conn.close()
 
 if __name__ == "__main__":
-    check_database() 
+    check_database_structure() 

@@ -1,0 +1,1 @@
+The video discusses manual data entry from Form 990s to create a benchmark database for single-campus senior living organizations, explores automation possibilities, and concludes with plans for a demo presentation on Friday.

@@ -116,3 +116,13 @@ celerybeat.pid
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Database files - 只保留backend目录下的数据库文件
+irs.db
+frontend/*/irs.db
+frontend/irs.db
+
+# Proprietary Data Assets
+backend/data/First100.xlsx
+backend/data/nonprofits_100.csv
+backend/irs.db

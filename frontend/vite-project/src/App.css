@@ -52,6 +52,283 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Project Introduction Styles */
+.project-intro {
+  text-align: center;
+  margin-bottom: 50px;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.project-intro h1 {
+  color: white;
+  font-size: 3rem;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.project-intro h2 {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.5rem;
+  margin-bottom: 40px;
+  font-weight: 400;
+}
+
+.intro-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+  text-align: left;
+}
+
+.problem-section,
+.solution-section,
+.features-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 25px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.problem-section h3,
+.solution-section h3,
+.features-section h3 {
+  color: white;
+  font-size: 1.3rem;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.problem-section p,
+.solution-section p {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.features-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.features-section li {
+  color: rgba(255, 255, 255, 0.9);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  line-height: 1.5;
+}
+
+.features-section li:last-child {
+  border-bottom: none;
+}
+
+/* Search Section Styles */
+.search-section {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.search-section h3 {
+  color: #2c3e50;
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.search-section p {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+}
+
+/* Updated Search Form Styles */
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.input-group label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.search-input {
+  padding: 14px 18px;
+  border: 2px solid #e1e8ed;
+  border-radius: 10px;
+  font-size: 16px;
+  width: 100%;
+  transition: all 0.3s ease;
+  background-color: #f8f9fa;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background-color: white;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.search-button {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 160px;
+}
+
+.search-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.search-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.clear-button {
+  padding: 14px 28px;
+  background-color: #ecf0f1;
+  color: #2c3e50;
+  border: 2px solid #bdc3c7;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.clear-button:hover {
+  background-color: #d5dbdb;
+  border-color: #95a5a6;
+}
+
+/* Results Section Styles */
+.results-container {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 40px;
+}
+
+.results-container h3 {
+  color: #2c3e50;
+  font-size: 1.6rem;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.results-container p {
+  color: #7f8c8d;
+  margin-bottom: 25px;
+  font-size: 1rem;
+}
+
+/* Call to Action Section */
+.cta-section {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  padding: 50px 40px;
+  border-radius: 16px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.cta-section h3 {
+  color: white;
+  font-size: 2rem;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.cta-section p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.cta-button {
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  min-width: 160px;
+}
+
+.cta-button.primary {
+  background-color: white;
+  color: #f5576c;
+}
+
+.cta-button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+}
+
+.cta-button.secondary {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.cta-button.secondary:hover {
+  background-color: white;
+  color: #f5576c;
+  transform: translateY(-2px);
+}
+
 h1 {
   text-align: center;
   color: #2c3e50;
@@ -178,6 +455,32 @@ h1 {
     font-size: 2rem;
   }
   
+  .project-intro {
+    padding: 30px 15px;
+    margin-bottom: 30px;
+  }
+  
+  .project-intro h1 {
+    font-size: 2.2rem;
+  }
+  
+  .project-intro h2 {
+    font-size: 1.2rem;
+  }
+  
+  .intro-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .search-section {
+    padding: 25px 20px;
+  }
+  
+  .search-section h3 {
+    font-size: 1.5rem;
+  }
+  
   .search-form {
     flex-direction: column;
     gap: 15px;
@@ -188,6 +491,17 @@ h1 {
     max-width: 400px;
   }
   
+  .button-group {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .search-button,
+  .clear-button {
+    width: 100%;
+    max-width: 200px;
+  }
+  
   .results-table {
     font-size: 12px;
   }
@@ -195,6 +509,24 @@ h1 {
   .results-table th,
   .results-table td {
     padding: 12px 8px;
+  }
+  
+  .cta-section {
+    padding: 30px 20px;
+  }
+  
+  .cta-section h3 {
+    font-size: 1.6rem;
+  }
+  
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .cta-button {
+    width: 100%;
+    max-width: 200px;
   }
 }
 

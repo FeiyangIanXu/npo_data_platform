@@ -214,4 +214,10 @@ Welcome to submit Issues and Pull Requests!
 
 ---
 
+## Data Requirement
+
+Please note: The source data files (First100.xlsx, nonprofits_100.csv) and the generated database (irs.db) are proprietary and are not included in this repository. To run the data pipeline (data_pipeline.py), you must provide your own source data and place it in the backend/data/ directory. The pipeline is designed to process a file with a specific multi-line header structure as detailed in the script.
+
+---
+
 **🎉 Enjoy the WRDS-style data query experience!** 

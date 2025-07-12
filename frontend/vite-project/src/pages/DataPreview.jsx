@@ -20,7 +20,7 @@ import axios from 'axios';
 
 const { Title, Text } = Typography;
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8001/api';
 
 const DataPreview = () => {
   const [data, setData] = useState([]);
