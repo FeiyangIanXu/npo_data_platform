@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, HTTPException
 from typing import List, Optional
 import sqlite3
 import re
+from utils.helpers import extract_fiscal_year
 
 router = APIRouter()
 
@@ -222,38 +223,4 @@ async def get_available_years():
         return {"years": sorted(list(years), reverse=True)}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取年度数据失败: {str(e)}")
-
-def extract_fiscal_year(fiscal_year_str):
-    """
-    从fiscal year字符串中提取标准化的年份
-    按照WRDS风格：以报表期末所在的公历年为准
-    
-    例如：
-    - "6/2023" -> 2023 (6月结束的2023财年)
-    - "12/2022" -> 2022 (12月结束的2022财年)
-    - "2024/4/30" -> 2024 (2024年4月30日结束)
-    - "2023/9/30" -> 2023 (2023年9月30日结束)
-    """
-    if not fiscal_year_str:
-        return None
-    
-    fiscal_year_str = str(fiscal_year_str).strip()
-    
-    # 处理 "M/YYYY" 格式 (如 "6/2023")
-    if '/' in fiscal_year_str and len(fiscal_year_str.split('/')) == 2:
-        parts = fiscal_year_str.split('/')
-        if parts[1].isdigit() and len(parts[1]) == 4:
-            return int(parts[1])
-    
-    # 处理 "YYYY/M/D" 格式 (如 "2024/4/30")
-    if '/' in fiscal_year_str and len(fiscal_year_str.split('/')) == 3:
-        parts = fiscal_year_str.split('/')
-        if parts[0].isdigit() and len(parts[0]) == 4:
-            return int(parts[0])
-    
-    # 处理纯年份格式
-    if fiscal_year_str.isdigit() and len(fiscal_year_str) == 4:
-        return int(fiscal_year_str)
-    
-    return None 
+        raise HTTPException(status_code=500, detail=f"获取年度数据失败: {str(e)}") 

@@ -37,8 +37,8 @@ const DataPreview = () => {
       const response = await axios.get(`${API_BASE_URL}/query?limit=50`);
       setData(response.data.data);
     } catch (error) {
-      console.error('获取预览数据失败:', error);
-      message.error('获取数据失败');
+      console.error('Failed to fetch preview data:', error);
+      message.error('Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -49,13 +49,13 @@ const DataPreview = () => {
       const response = await axios.get(`${API_BASE_URL}/statistics`);
       setStatistics(response.data);
     } catch (error) {
-      console.error('获取统计信息失败:', error);
+      console.error('Failed to fetch statistics:', error);
     }
   };
 
   const columns = [
     {
-      title: '组织名称',
+      title: 'Organization Name',
       dataIndex: 'campus',
       key: 'campus',
       width: 250,
@@ -68,19 +68,19 @@ const DataPreview = () => {
       width: 120,
     },
     {
-      title: '州',
+      title: 'State',
       dataIndex: 'st',
       key: 'st',
       width: 80,
     },
     {
-      title: '城市',
+      title: 'City',
       dataIndex: 'city',
       key: 'city',
       width: 120,
     },
     {
-      title: '总收入',
+      title: 'Total Revenue',
       dataIndex: 'part_i_summary_12_total_revenue_cy',
       key: 'total_revenue',
       width: 150,
@@ -93,7 +93,7 @@ const DataPreview = () => {
       },
     },
     {
-      title: '总资产',
+      title: 'Total Assets',
       dataIndex: 'part_i_summary_22_total_assets_cy',
       key: 'total_assets',
       width: 150,
@@ -106,7 +106,7 @@ const DataPreview = () => {
       },
     },
     {
-      title: '员工数',
+      title: 'Employees',
       dataIndex: 'part_i_summary_5_number_of_individuals_employed_cy',
       key: 'employees',
       width: 100,
@@ -140,8 +140,8 @@ const DataPreview = () => {
       setTotal(response.data.total);
       setCurrentPage(response.data.page);
     } catch (error) {
-      console.error('查询失败:', error);
-      message.error('查询失败，请重试');
+      console.error('Query failed:', error);
+      message.error('Query failed, please try again');
     } finally {
       setLoading(false);
     }
@@ -150,10 +150,10 @@ const DataPreview = () => {
   return (
     <div>
       <Title level={2}>
-        <EyeOutlined /> 数据预览
+        <EyeOutlined /> Data Preview
       </Title>
       <Text type="secondary">
-        预览IRS非营利组织Form 990数据集，了解数据结构和内容
+        Preview IRS nonprofit Form 990 dataset to understand data structure and content
       </Text>
 
       {/* 统计信息 */}
@@ -162,7 +162,7 @@ const DataPreview = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="总组织数"
+                title="Total Organizations"
                 value={statistics.total_organizations}
                 prefix={<BarChartOutlined />}
               />
@@ -171,7 +171,7 @@ const DataPreview = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="覆盖州数"
+                title="States Covered"
                 value={statistics.state_distribution?.length || 0}
               />
             </Card>
@@ -179,7 +179,7 @@ const DataPreview = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="数据字段数"
+                title="Data Fields"
                 value={statistics.fields?.count || 0}
               />
             </Card>
@@ -187,7 +187,7 @@ const DataPreview = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="数据年份"
+                title="Data Year"
                 value="2023"
               />
             </Card>
@@ -197,7 +197,7 @@ const DataPreview = () => {
 
       {/* 州分布 */}
       {statistics?.state_distribution && (
-        <Card title="州分布" style={{ marginBottom: 24 }}>
+        <Card title="State Distribution" style={{ marginBottom: 24 }}>
           <Row gutter={[8, 8]}>
             {statistics.state_distribution.map((item, index) => (
               <Col key={index}>
@@ -214,13 +214,13 @@ const DataPreview = () => {
       <Card 
         title={
           <Space>
-            <span>数据预览</span>
-            <Tag color="green">前50条记录</Tag>
+            <span>Data Preview</span>
+            <Tag color="green">First 50 Records</Tag>
           </Space>
         }
         extra={
           <Button icon={<DownloadOutlined />}>
-            导出完整数据
+            Export Full Data
           </Button>
         }
       >

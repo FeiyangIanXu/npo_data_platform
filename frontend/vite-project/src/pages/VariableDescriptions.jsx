@@ -36,7 +36,7 @@ const VariableDescriptions = () => {
       setFields(fieldsData);
       setFilteredFields(fieldsData);
     } catch (error) {
-      console.error('获取字段信息失败:', error);
+      console.error('Failed to fetch field information:', error);
     } finally {
       setLoading(false);
     }
@@ -55,62 +55,62 @@ const VariableDescriptions = () => {
   };
 
   const getFieldCategory = (fieldName) => {
-    if (fieldName.includes('revenue')) return '收入相关';
-    if (fieldName.includes('asset')) return '资产相关';
-    if (fieldName.includes('expense')) return '支出相关';
-    if (fieldName.includes('employee') || fieldName.includes('employed')) return '员工相关';
-    if (fieldName.includes('compensation')) return '薪酬相关';
-    if (fieldName.includes('grant')) return '资助相关';
-    if (fieldName.includes('program')) return '项目相关';
-    if (fieldName.includes('cy')) return '当年数据';
-    if (fieldName.includes('py')) return '上年数据';
-    return '其他';
+    if (fieldName.includes('revenue')) return 'Revenue';
+    if (fieldName.includes('asset')) return 'Assets';
+    if (fieldName.includes('expense')) return 'Expenses';
+    if (fieldName.includes('employee') || fieldName.includes('employed')) return 'Employees';
+    if (fieldName.includes('compensation')) return 'Compensation';
+    if (fieldName.includes('grant')) return 'Grants';
+    if (fieldName.includes('program')) return 'Programs';
+    if (fieldName.includes('cy')) return 'Current Year';
+    if (fieldName.includes('py')) return 'Previous Year';
+    return 'Other';
   };
 
   const getFieldDescription = (fieldName) => {
     const descriptions = {
-      'organization_name': '组织名称',
-      'ein': '雇主识别号码 (Employer Identification Number)',
-      'state': '所在州',
-      'city': '所在城市',
-      'total_revenue_cy': '当年总收入 (Current Year Total Revenue)',
-      'total_revenue_py': '上年总收入 (Previous Year Total Revenue)',
-      'total_assets_cy': '当年总资产 (Current Year Total Assets)',
-      'total_assets_py': '上年总资产 (Previous Year Total Assets)',
-      'total_expenses_cy': '当年总支出 (Current Year Total Expenses)',
-      'total_expenses_py': '上年总支出 (Previous Year Total Expenses)',
-      'number_of_individuals_employed_cy': '当年员工数量 (Current Year Number of Employees)',
-      'number_of_individuals_employed_py': '上年员工数量 (Previous Year Number of Employees)',
-      'contributions_and_grants_cy': '当年捐赠和资助 (Current Year Contributions and Grants)',
-      'contributions_and_grants_py': '上年捐赠和资助 (Previous Year Contributions and Grants)',
-      'program_revenue_cy': '当年项目收入 (Current Year Program Revenue)',
-      'program_revenue_py': '上年项目收入 (Previous Year Program Revenue)',
-      'investment_income_cy': '当年投资收益 (Current Year Investment Income)',
-      'investment_income_py': '上年投资收益 (Previous Year Investment Income)',
-      'other_revenue_cy': '当年其他收入 (Current Year Other Revenue)',
-      'other_revenue_py': '上年其他收入 (Previous Year Other Revenue)',
-      'grants_paid_cy': '当年支付的资助 (Current Year Grants Paid)',
-      'grants_paid_py': '上年支付的资助 (Previous Year Grants Paid)',
-      'salaries_other_comp_cy': '当年薪资和其他补偿 (Current Year Salaries and Other Compensation)',
-      'salaries_other_comp_py': '上年薪资和其他补偿 (Previous Year Salaries and Other Compensation)',
-      'total_fundraising_expenses_cy': '当年总筹款费用 (Current Year Total Fundraising Expenses)',
-      'total_fundraising_expenses_py': '上年总筹款费用 (Previous Year Total Fundraising Expenses)',
-      'other_expenses_cy': '当年其他费用 (Current Year Other Expenses)',
-      'other_expenses_py': '上年其他费用 (Previous Year Other Expenses)',
-      'revenue_less_expenses_cy': '当年收入减去支出 (Current Year Revenue Less Expenses)',
-      'revenue_less_expenses_py': '上年收入减去支出 (Previous Year Revenue Less Expenses)',
-      'total_liabilities_cy': '当年总负债 (Current Year Total Liabilities)',
-      'total_liabilities_py': '上年总负债 (Previous Year Total Liabilities)',
-      'net_assets_or_fund_balances_cy': '当年净资产或基金余额 (Current Year Net Assets or Fund Balances)',
-      'net_assets_or_fund_balances_py': '上年净资产或基金余额 (Previous Year Net Assets or Fund Balances)',
+      'organization_name': 'Organization Name',
+      'ein': 'Employer Identification Number',
+      'state': 'State',
+      'city': 'City',
+      'total_revenue_cy': 'Current Year Total Revenue',
+      'total_revenue_py': 'Previous Year Total Revenue',
+      'total_assets_cy': 'Current Year Total Assets',
+      'total_assets_py': 'Previous Year Total Assets',
+      'total_expenses_cy': 'Current Year Total Expenses',
+      'total_expenses_py': 'Previous Year Total Expenses',
+      'number_of_individuals_employed_cy': 'Current Year Number of Employees',
+      'number_of_individuals_employed_py': 'Previous Year Number of Employees',
+      'contributions_and_grants_cy': 'Current Year Contributions and Grants',
+      'contributions_and_grants_py': 'Previous Year Contributions and Grants',
+      'program_revenue_cy': 'Current Year Program Revenue',
+      'program_revenue_py': 'Previous Year Program Revenue',
+      'investment_income_cy': 'Current Year Investment Income',
+      'investment_income_py': 'Previous Year Investment Income',
+      'other_revenue_cy': 'Current Year Other Revenue',
+      'other_revenue_py': 'Previous Year Other Revenue',
+      'grants_paid_cy': 'Current Year Grants Paid',
+      'grants_paid_py': 'Previous Year Grants Paid',
+      'salaries_other_comp_cy': 'Current Year Salaries and Other Compensation',
+      'salaries_other_comp_py': 'Previous Year Salaries and Other Compensation',
+      'total_fundraising_expenses_cy': 'Current Year Total Fundraising Expenses',
+      'total_fundraising_expenses_py': 'Previous Year Total Fundraising Expenses',
+      'other_expenses_cy': 'Current Year Other Expenses',
+      'other_expenses_py': 'Previous Year Other Expenses',
+      'revenue_less_expenses_cy': 'Current Year Revenue Less Expenses',
+      'revenue_less_expenses_py': 'Previous Year Revenue Less Expenses',
+      'total_liabilities_cy': 'Current Year Total Liabilities',
+      'total_liabilities_py': 'Previous Year Total Liabilities',
+      'net_assets_or_fund_balances_cy': 'Current Year Net Assets or Fund Balances',
+      'net_assets_or_fund_balances_py': 'Previous Year Net Assets or Fund Balances',
     };
 
-    return descriptions[fieldName] || '暂无描述';
+    return descriptions[fieldName] || 'No description available';
   };
 
   const columns = [
     {
-      title: '字段名称',
+      title: 'Field Name',
       dataIndex: 'name',
       key: 'name',
       width: 250,
@@ -119,7 +119,7 @@ const VariableDescriptions = () => {
       ),
     },
     {
-      title: '数据类型',
+      title: 'Data Type',
       dataIndex: 'type',
       key: 'type',
       width: 120,
@@ -128,7 +128,7 @@ const VariableDescriptions = () => {
       ),
     },
     {
-      title: '分类',
+      title: 'Category',
       key: 'category',
       width: 120,
       render: (_, record) => (
@@ -136,7 +136,7 @@ const VariableDescriptions = () => {
       ),
     },
     {
-      title: '描述',
+      title: 'Description',
       key: 'description',
       render: (_, record) => (
         <Text>{getFieldDescription(record.name)}</Text>
@@ -147,10 +147,10 @@ const VariableDescriptions = () => {
   return (
     <div>
       <Title level={2}>
-        <BookOutlined /> 变量描述
+        <BookOutlined /> Variable Descriptions
       </Title>
       <Text type="secondary">
-        了解IRS Form 990数据集中各个字段的含义和用途
+        Understand the meaning and purpose of each field in the IRS Form 990 dataset
       </Text>
 
       <Divider />
@@ -158,9 +158,9 @@ const VariableDescriptions = () => {
       {/* 搜索框 */}
       <Card style={{ marginBottom: 24 }}>
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Text strong>搜索字段</Text>
+          <Text strong>Search Fields</Text>
           <Search
-            placeholder="输入字段名称关键词"
+            placeholder="Enter field name keywords"
             allowClear
             enterButton={<SearchOutlined />}
             size="large"
@@ -172,18 +172,18 @@ const VariableDescriptions = () => {
 
       {/* 字段统计 */}
       <Card style={{ marginBottom: 24 }}>
-        <Descriptions title="数据集信息" bordered>
-          <Descriptions.Item label="总字段数">{fields.length}</Descriptions.Item>
-          <Descriptions.Item label="当前显示">{filteredFields.length}</Descriptions.Item>
-          <Descriptions.Item label="数据来源">IRS Form 990</Descriptions.Item>
-          <Descriptions.Item label="数据年份">2023</Descriptions.Item>
-          <Descriptions.Item label="数据格式">CSV/Excel</Descriptions.Item>
-          <Descriptions.Item label="更新时间">2024年</Descriptions.Item>
+        <Descriptions title="Dataset Information" bordered>
+          <Descriptions.Item label="Total Fields">{fields.length}</Descriptions.Item>
+          <Descriptions.Item label="Currently Displayed">{filteredFields.length}</Descriptions.Item>
+          <Descriptions.Item label="Data Source">IRS Form 990</Descriptions.Item>
+          <Descriptions.Item label="Data Year">2023</Descriptions.Item>
+          <Descriptions.Item label="Data Format">CSV/Excel</Descriptions.Item>
+          <Descriptions.Item label="Last Updated">2024</Descriptions.Item>
         </Descriptions>
       </Card>
 
       {/* 字段列表 */}
-      <Card title="字段详情">
+      <Card title="Field Details">
         <Table
           columns={columns}
           dataSource={filteredFields}
@@ -194,7 +194,7 @@ const VariableDescriptions = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => 
-              `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+              `${range[0]}-${range[1]} of ${total} items`,
           }}
           scroll={{ x: 800 }}
           size="middle"
@@ -202,24 +202,24 @@ const VariableDescriptions = () => {
       </Card>
 
       {/* 使用说明 */}
-      <Card title="使用说明" style={{ marginTop: 24 }}>
+      <Card title="Usage Instructions" style={{ marginTop: 24 }}>
         <Paragraph>
-          <Text strong>字段命名规则：</Text>
+          <Text strong>Field Naming Rules:</Text>
         </Paragraph>
         <ul>
-          <li><Text code>_cy</Text> 后缀表示当前年份 (Current Year) 数据</li>
-          <li><Text code>_py</Text> 后缀表示上一年 (Previous Year) 数据</li>
-          <li>字段名称采用下划线分隔的英文命名</li>
-          <li>所有金额字段以美元为单位</li>
+          <li><Text code>_cy</Text> suffix indicates Current Year data</li>
+          <li><Text code>_py</Text> suffix indicates Previous Year data</li>
+          <li>Field names use underscore-separated English naming</li>
+          <li>All monetary fields are in US dollars</li>
         </ul>
         
         <Paragraph>
-          <Text strong>数据来源：</Text>
+          <Text strong>Data Source:</Text>
         </Paragraph>
         <ul>
-          <li>数据来源于IRS公开的Form 990表格</li>
-          <li>包含非营利组织的财务和运营信息</li>
-          <li>数据经过清洗和标准化处理</li>
+          <li>Data sourced from publicly available IRS Form 990 filings</li>
+          <li>Contains financial and operational information of nonprofit organizations</li>
+          <li>Data has been cleaned and standardized</li>
         </ul>
       </Card>
     </div>

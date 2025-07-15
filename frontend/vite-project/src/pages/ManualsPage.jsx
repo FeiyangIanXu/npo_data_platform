@@ -22,21 +22,21 @@ const { Title, Text, Paragraph } = Typography;
 const ManualsPage = () => {
   const steps = [
     {
-      title: '数据预览',
-      description: '了解数据集结构',
+      title: 'Data Preview',
+      description: 'Understand dataset structure',
       icon: <EyeOutlined />,
       content: (
         <div>
           <Paragraph>
-            在开始查询之前，建议先查看数据预览页面，了解：
+            Before starting your query, it's recommended to view the data preview page to understand:
           </Paragraph>
           <List
             size="small"
             dataSource={[
-              '数据集包含的组织数量和覆盖范围',
-              '各个字段的数据类型和含义',
-              '数据的完整性和质量',
-              '州分布和收入分布情况'
+              'Number of organizations and coverage scope in the dataset',
+              'Data types and meanings of various fields',
+              'Data completeness and quality',
+              'State distribution and revenue distribution'
             ]}
             renderItem={(item) => <List.Item>• {item}</List.Item>}
           />
@@ -44,22 +44,22 @@ const ManualsPage = () => {
       ),
     },
     {
-      title: '选择查询条件',
-      description: '设置筛选条件',
+      title: 'Select Query Conditions',
+      description: 'Set filtering criteria',
       icon: <SearchOutlined />,
       content: (
         <div>
           <Paragraph>
-            在查询表单中，您可以设置以下筛选条件：
+            In the query form, you can set the following filtering conditions:
           </Paragraph>
           <List
             size="small"
             dataSource={[
-              '组织名称：支持模糊搜索',
-              'EIN号码：精确或模糊匹配',
-              '地理位置：按州和城市筛选',
-              '特定字段：选择需要查看的字段',
-              '结果数量：控制返回的记录数'
+              'Organization name: Supports fuzzy search',
+              'EIN number: Exact or fuzzy matching',
+              'Geographic location: Filter by state and city',
+              'Specific fields: Select fields you need to view',
+              'Result quantity: Control the number of returned records'
             ]}
             renderItem={(item) => <List.Item>• {item}</List.Item>}
           />
@@ -67,21 +67,21 @@ const ManualsPage = () => {
       ),
     },
     {
-      title: '执行查询',
-      description: '获取查询结果',
+      title: 'Execute Query',
+      description: 'Get query results',
       icon: <SearchOutlined />,
       content: (
         <div>
           <Paragraph>
-            点击查询按钮后，系统将：
+            After clicking the query button, the system will:
           </Paragraph>
           <List
             size="small"
             dataSource={[
-              '根据条件筛选数据',
-              '返回匹配的记录',
-              '显示分页信息',
-              '提供导出功能'
+              'Filter data based on conditions',
+              'Return matching records',
+              'Display pagination information',
+              'Provide export functionality'
             ]}
             renderItem={(item) => <List.Item>• {item}</List.Item>}
           />
@@ -89,21 +89,21 @@ const ManualsPage = () => {
       ),
     },
     {
-      title: '结果处理',
-      description: '分析和导出数据',
+      title: 'Result Processing',
+      description: 'Analyze and export data',
       icon: <DownloadOutlined />,
       content: (
         <div>
           <Paragraph>
-            查询结果可以：
+            Query results can be:
           </Paragraph>
           <List
             size="small"
             dataSource={[
-              '在表格中查看详细信息',
-              '按列排序和筛选',
-              '导出为CSV格式',
-              '进一步分析数据'
+              'View detailed information in tables',
+              'Sort and filter by columns',
+              'Export to CSV format',
+              'Further analyze data'
             ]}
             renderItem={(item) => <List.Item>• {item}</List.Item>}
           />
@@ -114,57 +114,57 @@ const ManualsPage = () => {
 
   const tips = [
     {
-      title: '查询技巧',
-      content: '使用组织名称的部分关键词可以获得更多匹配结果。例如，搜索"hospital"可以找到所有包含该词的组织。'
+      title: 'Query Tips',
+      content: 'Using partial keywords from organization names can yield more matching results. For example, searching for "hospital" will find all organizations containing that word.'
     },
     {
-      title: '数据说明',
-      content: '所有金额数据以美元为单位，_cy表示当前年份，_py表示上一年。'
+      title: 'Data Description',
+      content: 'All monetary data is in US dollars, _cy indicates current year, _py indicates previous year.'
     },
     {
-      title: '性能优化',
-      content: '建议设置合理的查询条件，避免返回过多数据影响查询速度。'
+      title: 'Performance Optimization',
+      content: 'It is recommended to set reasonable query conditions to avoid returning too much data that affects query speed.'
     },
     {
-      title: '数据更新',
-      content: '数据来源于IRS公开数据，定期更新。当前版本包含2023年的数据。'
+      title: 'Data Updates',
+      content: 'Data is sourced from IRS public data and updated regularly. The current version contains 2023 data.'
     }
   ];
 
   return (
     <div>
       <Title level={2}>
-        <BookOutlined /> 使用手册
+        <BookOutlined /> User Manual
       </Title>
       <Text type="secondary">
-        了解如何使用IRS非营利组织数据平台进行数据查询和分析
+        Learn how to use the IRS nonprofit data platform for data querying and analysis
       </Text>
 
       <Divider />
 
       {/* 快速开始 */}
-      <Card title="快速开始" style={{ marginBottom: 24 }}>
+      <Card title="Quick Start" style={{ marginBottom: 24 }}>
         <Alert
-          message="欢迎使用IRS非营利组织数据平台"
-          description="本平台提供IRS Form 990数据的查询和分析功能，帮助您快速获取非营利组织的财务和运营信息。"
+          message="Welcome to the IRS Nonprofit Data Platform"
+          description="This platform provides query and analysis functions for IRS Form 990 data, helping you quickly obtain financial and operational information of nonprofit organizations."
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
         />
         
         <Paragraph>
-          <Text strong>主要功能：</Text>
+          <Text strong>Main Features:</Text>
         </Paragraph>
         <Space wrap>
-          <Tag color="blue" icon={<SearchOutlined />}>数据查询</Tag>
-          <Tag color="green" icon={<EyeOutlined />}>数据预览</Tag>
-          <Tag color="orange" icon={<BookOutlined />}>变量描述</Tag>
-          <Tag color="purple" icon={<DownloadOutlined />}>数据导出</Tag>
+          <Tag color="blue" icon={<SearchOutlined />}>Data Query</Tag>
+          <Tag color="green" icon={<EyeOutlined />}>Data Preview</Tag>
+          <Tag color="orange" icon={<BookOutlined />}>Variable Descriptions</Tag>
+          <Tag color="purple" icon={<DownloadOutlined />}>Data Export</Tag>
         </Space>
       </Card>
 
       {/* 使用步骤 */}
-      <Card title="使用步骤" style={{ marginBottom: 24 }}>
+      <Card title="Usage Steps" style={{ marginBottom: 24 }}>
         <Steps
           direction="vertical"
           current={-1}
@@ -173,7 +173,7 @@ const ManualsPage = () => {
       </Card>
 
       {/* 详细说明 */}
-      <Card title="详细说明" style={{ marginBottom: 24 }}>
+      <Card title="Detailed Instructions" style={{ marginBottom: 24 }}>
         {steps.map((step, index) => (
           <div key={index}>
             <Title level={4}>
@@ -186,7 +186,7 @@ const ManualsPage = () => {
       </Card>
 
       {/* 使用技巧 */}
-      <Card title="使用技巧" style={{ marginBottom: 24 }}>
+      <Card title="Usage Tips" style={{ marginBottom: 24 }}>
         <List
           itemLayout="vertical"
           dataSource={tips}
@@ -202,25 +202,25 @@ const ManualsPage = () => {
       </Card>
 
       {/* 常见问题 */}
-      <Card title="常见问题" style={{ marginBottom: 24 }}>
+      <Card title="Frequently Asked Questions" style={{ marginBottom: 24 }}>
         <List
           itemLayout="vertical"
           dataSource={[
             {
-              question: '如何找到特定组织的财务信息？',
-              answer: '在查询表单中输入组织名称或EIN号码，系统会返回匹配的记录。'
+              question: 'How to find financial information for a specific organization?',
+              answer: 'Enter the organization name or EIN number in the query form, and the system will return matching records.'
             },
             {
-              question: '数据来源是什么？',
-              answer: '数据来源于IRS公开的Form 990表格，包含非营利组织的财务和运营信息。'
+              question: 'What is the data source?',
+              answer: 'Data is sourced from publicly available IRS Form 990 filings, containing financial and operational information of nonprofit organizations.'
             },
             {
-              question: '如何导出查询结果？',
-              answer: '在查询结果页面点击"导出"按钮，可以将数据下载为CSV格式。'
+              question: 'How to export query results?',
+              answer: 'Click the "Export" button on the query results page to download data in CSV format.'
             },
             {
-              question: '数据更新频率如何？',
-              answer: '数据定期更新，当前版本包含2023年的数据。'
+              question: 'What is the data update frequency?',
+              answer: 'Data is updated regularly. The current version contains 2023 data.'
             }
           ]}
           renderItem={(item) => (
@@ -240,17 +240,17 @@ const ManualsPage = () => {
       </Card>
 
       {/* 联系支持 */}
-      <Card title="技术支持">
+      <Card title="Technical Support">
         <Paragraph>
-          如果您在使用过程中遇到问题，可以：
+          If you encounter problems during use, you can:
         </Paragraph>
         <List
           size="small"
           dataSource={[
-            '查看知识库页面获取更多帮助',
-            '检查网络连接是否正常',
-            '确认查询条件设置是否正确',
-            '联系技术支持团队'
+            'Check the knowledge base page for more help',
+            'Verify that your network connection is working properly',
+            'Confirm that query conditions are set correctly',
+            'Contact the technical support team'
           ]}
           renderItem={(item) => <List.Item>• {item}</List.Item>}
         />

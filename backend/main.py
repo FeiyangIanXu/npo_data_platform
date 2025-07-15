@@ -9,12 +9,12 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-# 导入新的API模块
+# Import new API modules
 from api.search import router as search_router
 from api.export import router as export_router
 from api.filter import router as filter_router
 
-# 数据模型
+# Data models
 class UserLogin(BaseModel):
     username: str
     password: str
@@ -23,20 +23,20 @@ class UserRegister(BaseModel):
     username: str
     password: str
 
-# 配置
+# Configuration
 SECRET_KEY = "your-secret-key-here-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 DATABASE_URL = "sqlite:///./irs.db"
 
-# 创建FastAPI应用
+# Create FastAPI application
 app = FastAPI(
-    title="IRS非营利组织数据平台",
-    description="提供IRS Form 990等公开数据的查询和分析服务",
+    title="IRS Nonprofit Organization Data Platform",
+    description="Provides query and analysis services for IRS Form 990 and other public data",
     version="1.0.0"
 )
 
-# 配置CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
@@ -45,20 +45,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 注册新的API路由
-app.include_router(search_router, prefix="/api", tags=["搜索"])
-app.include_router(export_router, prefix="/api", tags=["导出"])
-app.include_router(filter_router, prefix="/api", tags=["筛选"])
+# Register new API routes
+app.include_router(search_router, prefix="/api", tags=["Search"])
+app.include_router(export_router, prefix="/api", tags=["Export"])
+app.include_router(filter_router, prefix="/api", tags=["Filter"])
 
-# 数据库配置
+# Database configuration
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 密码加密配置
+# Password encryption configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-# 辅助函数
+# Helper functions
 def get_password_hash(password):
     return pwd_context.hash(password)
 
@@ -72,11 +72,11 @@ def create_access_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-# API端点
+# API endpoints
 @app.get("/")
 async def root():
     return {
-        "message": "IRS非营利组织数据平台API", 
+        "message": "IRS Nonprofit Organization Data Platform API", 
         "version": "1.0.0",
         "docs": "/docs",
         "redoc": "/redoc"
@@ -97,18 +97,18 @@ async def register(user_data: UserRegister):
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id FROM users WHERE username = :username"), {"username": user_data.username})
             if result.fetchone():
-                raise HTTPException(status_code=409, detail="用户名已存在")
+                raise HTTPException(status_code=409, detail="Username already exists")
             
             password_hash = get_password_hash(user_data.password)
             conn.execute(text("INSERT INTO users (username, password_hash) VALUES (:username, :password_hash)"), 
                         {"username": user_data.username, "password_hash": password_hash})
             conn.commit()
             
-        return {"message": "注册成功", "username": user_data.username}
+        return {"message": "Registration successful", "username": user_data.username}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"注册失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @app.post("/api/login")
 async def login(user_data: UserLogin):
@@ -118,11 +118,11 @@ async def login(user_data: UserLogin):
             user = result.fetchone()
             
             if not user:
-                raise HTTPException(status_code=401, detail="用户名或密码错误")
+                raise HTTPException(status_code=401, detail="Invalid username or password")
             
             password_hash = user[0]
             if not verify_password(user_data.password, password_hash):
-                raise HTTPException(status_code=401, detail="用户名或密码错误")
+                raise HTTPException(status_code=401, detail="Invalid username or password")
             
             access_token = create_access_token(data={"sub": user_data.username})
             
@@ -130,7 +130,7 @@ async def login(user_data: UserLogin):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"登录失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @app.get("/api/fields")
 async def get_available_fields():
@@ -149,8 +149,8 @@ async def get_available_fields():
                 })
             return {"fields": fields, "count": len(fields)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取字段信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get field information: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002) 
+    uvicorn.run(app, host="0.0.0.0", port=8000) 

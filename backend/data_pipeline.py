@@ -2,6 +2,7 @@ import pandas as pd
 import sqlite3
 import re
 import os
+from utils.helpers import extract_fiscal_year
 
 def sanitize_name(name):
     """清理列名：将字符串转为小写，用下划线替换所有空格和特殊字符。"""
@@ -175,6 +176,34 @@ def run_data_pipeline():
         df = df.drop(columns=empty_cols)
     
     print(f"  > 最终列数: {len(df.columns)}")
+
+    # 新增步骤：创建标准化的 'fiscal_year' 列
+    print("\n新增步骤: 创建标准化的 'fiscal_year' 列...")
+    
+    # 查找财年结束日期列
+    fy_end_column_name = None
+    for col in df.columns:
+        if 'fy_ending' in col.lower() or 'fiscal' in col.lower():
+            fy_end_column_name = col
+            break
+    
+    if fy_end_column_name:
+        print(f"  > 找到财年结束日期列: '{fy_end_column_name}'")
+        df['fiscal_year'] = df[fy_end_column_name].apply(extract_fiscal_year)
+        # 将浮点数转换为可空的整数类型
+        df['fiscal_year'] = df['fiscal_year'].astype('Int64')
+        print(f"  > 成功创建 'fiscal_year' 列")
+        # 查看一下创建结果
+        print(f"  > 财年分布示例:")
+        fiscal_year_counts = df['fiscal_year'].value_counts().head(5)
+        for year, count in fiscal_year_counts.items():
+            print(f"    {year}: {count} 条记录")
+    else:
+        print(f"  > 警告: 未找到财年结束日期列，无法创建 'fiscal_year'")
+        # 尝试查找其他可能的日期列
+        date_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ['date', 'year', 'period'])]
+        if date_columns:
+            print(f"  > 发现可能的日期列: {date_columns[:3]}")
 
     # 步骤4：连接数据库并写入数据
     print(f"\n步骤 4/4: 连接数据库并写入数据...")

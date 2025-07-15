@@ -56,5 +56,9 @@ def check_database_structure():
     
     conn.close()
 
+
+
+
+
 if __name__ == "__main__":
     check_database_structure() 

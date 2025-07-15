@@ -96,7 +96,8 @@ async def advanced_filter(request: FilterRequest):
         # 验证字段名
         valid_fields = [
             'campus', 'address', 'city', 'st', 'zip', 
-            'part_i_summary_12_total_revenue_cy', 'employees', 'ein'
+            'part_i_summary_12_total_revenue_cy', 'employees', 'ein',
+            'fiscal_year'  # 新增财年字段
         ]
         
         for condition in request.conditions:
@@ -227,6 +228,11 @@ async def get_filter_fields():
                 "type": "string",
                 "description": "雇主识别号",
                 "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
+            },
+            "fiscal_year": {
+                "type": "number",
+                "description": "财年（以报表期末所在的公历年为准）",
+                "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "in", "not_in", "is_null", "is_not_null"]
             }
         },
         "logic_operators": ["AND", "OR"],
@@ -271,6 +277,14 @@ async def get_filter_examples():
                 "description": "查找员工数量在10-100之间的组织",
                 "conditions": [
                     {"field": "employees", "operator": "between", "value": [10, 100]}
+                ],
+                "logic": "AND"
+            },
+            {
+                "name": "2023财年组织",
+                "description": "查找2023财年的组织",
+                "conditions": [
+                    {"field": "fiscal_year", "operator": "equals", "value": 2023}
                 ],
                 "logic": "AND"
             }

@@ -3,8 +3,9 @@ import json
 import logging
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
+import re
 
-# 配置日志
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -13,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 def validate_pagination_params(page: int, page_size: int, max_page_size: int = 1000) -> tuple:
     """
-    验证分页参数
+    Validate pagination parameters
     
     Args:
-        page: 页码
-        page_size: 每页大小
-        max_page_size: 最大每页大小
+        page: Page number
+        page_size: Page size
+        max_page_size: Maximum page size
     
     Returns:
         (validated_page, validated_page_size, offset)
@@ -98,18 +99,18 @@ def validate_field_name(field: str, valid_fields: List[str]) -> bool:
 
 def sanitize_sql_input(input_str: str) -> str:
     """
-    清理SQL输入，防止SQL注入
+    Sanitize SQL input to prevent SQL injection
     
     Args:
-        input_str: 输入字符串
+        input_str: Input string
     
     Returns:
-        清理后的字符串
+        Sanitized string
     """
     if not input_str:
         return ""
     
-    # 移除危险的SQL关键字
+    # Remove dangerous SQL keywords
     dangerous_keywords = [
         'DROP', 'DELETE', 'UPDATE', 'INSERT', 'CREATE', 'ALTER', 
         'EXEC', 'EXECUTE', 'UNION', 'SELECT', 'SCRIPT'
@@ -239,3 +240,33 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (ValueError, TypeError):
         return default 
+
+def extract_fiscal_year(fiscal_year_str: str) -> Optional[int]:
+    """
+    从 fiscal year 字符串中提取标准化的年份。
+    按照WRDS风格：以报表期末所在的公历年为准。
+
+    例如：
+    - "6/2023" -> 2023
+    - "2024/4/30" -> 2024
+    """
+    if not fiscal_year_str:
+        return None
+
+    fiscal_year_str = str(fiscal_year_str).strip()
+
+    # 匹配 "M/YYYY" 或 "MM/YYYY"
+    match = re.search(r'/(\d{4})$', fiscal_year_str)
+    if match:
+        return int(match.group(1))
+
+    # 匹配 "YYYY/M/D"
+    match = re.search(r'^(\d{4})/', fiscal_year_str)
+    if match:
+        return int(match.group(1))
+
+    # 匹配纯四位数字年份
+    if fiscal_year_str.isdigit() and len(fiscal_year_str) == 4:
+        return int(fiscal_year_str)
+
+    return None 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, useNavigate } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
 import { 
   SearchOutlined, 
@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import './App.css';
 
-// 导入页面组件
+// Import page components
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -24,8 +24,10 @@ import KnowledgeBase from './pages/KnowledgeBase';
 
 const { Header, Content, Sider } = Layout;
 
-// 主应用布局组件
+// Main application layout component
 function MainAppLayout() {
+  const navigate = useNavigate();
+  
   const menuItems = [
     {
       key: '/dashboard',
@@ -67,9 +69,9 @@ function MainAppLayout() {
   const handleMenuClick = ({ key }) => {
     if (key === '/logout') {
       localStorage.removeItem('access_token');
-      window.location.href = '/';
+      navigate('/');
     } else {
-      window.location.href = key;
+      navigate(key);
     }
   };
 
@@ -118,14 +120,7 @@ function MainAppLayout() {
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}>
-            <Routes>
-              <Route path="/dashboard" element={<HomePage />} />
-              <Route path="/dashboard/query" element={<QueryForm />} />
-              <Route path="/dashboard/data-preview" element={<DataPreview />} />
-              <Route path="/dashboard/variable-descriptions" element={<VariableDescriptions />} />
-              <Route path="/dashboard/manuals" element={<ManualsPage />} />
-              <Route path="/dashboard/knowledge-base" element={<KnowledgeBase />} />
-            </Routes>
+            <Outlet />
           </Content>
         </Layout>
       </Layout>
@@ -137,15 +132,22 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* 公共页面 */}
+        {/* Public pages */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
-        {/* 需要认证的页面 - 包装在主应用布局中 */}
-        <Route path="/dashboard/*" element={<MainAppLayout />} />
+        {/* Protected pages - wrapped in main application layout */}
+        <Route path="/dashboard" element={<MainAppLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="query" element={<QueryForm />} />
+          <Route path="data-preview" element={<DataPreview />} />
+          <Route path="variable-descriptions" element={<VariableDescriptions />} />
+          <Route path="manuals" element={<ManualsPage />} />
+          <Route path="knowledge-base" element={<KnowledgeBase />} />
+        </Route>
         
-        {/* 重定向根路径到首页 */}
+        {/* Redirect root path to home page */}
         <Route path="*" element={<LandingPage />} />
       </Routes>
     </Router>

@@ -27,55 +27,55 @@ const KnowledgeBase = () => {
   const faqData = [
     {
       key: '1',
-      header: '数据相关',
+      header: 'Data Related',
       items: [
         {
-          question: '什么是IRS Form 990？',
-          answer: 'IRS Form 990是美国国税局要求大多数免税组织提交的年度信息申报表。它包含组织的财务信息、治理结构、项目活动等详细信息。'
+          question: 'What is IRS Form 990?',
+          answer: 'IRS Form 990 is an annual information return that most tax-exempt organizations are required to file with the IRS. It contains detailed information about the organization\'s finances, governance structure, and program activities.'
         },
         {
-          question: '数据更新频率如何？',
-          answer: '数据来源于IRS公开数据，通常每年更新一次。当前版本包含2023年的数据。'
+          question: 'How frequently is the data updated?',
+          answer: 'Data is sourced from IRS public data and is typically updated annually. The current version contains 2023 data.'
         },
         {
-          question: '数据覆盖范围包括哪些组织？',
-          answer: '数据覆盖美国境内的非营利组织，包括501(c)(3)慈善组织、医院、教育机构等。'
+          question: 'What organizations are covered in the data?',
+          answer: 'The data covers nonprofit organizations within the United States, including 501(c)(3) charitable organizations, hospitals, educational institutions, etc.'
         }
       ]
     },
     {
       key: '2',
-      header: '查询功能',
+      header: 'Query Functions',
       items: [
         {
-          question: '如何精确查找特定组织？',
-          answer: '可以使用组织名称或EIN号码进行精确查找。EIN是唯一的雇主识别号码，可以确保找到正确的组织。'
+          question: 'How to precisely find a specific organization?',
+          answer: 'You can use the organization name or EIN number for precise searches. EIN is a unique employer identification number that ensures you find the correct organization.'
         },
         {
-          question: '支持哪些查询条件？',
-          answer: '支持按组织名称、EIN、州、城市等条件查询，还支持模糊搜索和字段筛选。'
+          question: 'What query conditions are supported?',
+          answer: 'Supports queries by organization name, EIN, state, city, and other conditions. Also supports fuzzy search and field filtering.'
         },
         {
-          question: '查询结果可以导出吗？',
-          answer: '是的，查询结果可以导出为CSV格式，方便进一步分析。'
+          question: 'Can query results be exported?',
+          answer: 'Yes, query results can be exported in CSV format for further analysis.'
         }
       ]
     },
     {
       key: '3',
-      header: '技术问题',
+      header: 'Technical Issues',
       items: [
         {
-          question: '系统支持哪些浏览器？',
-          answer: '建议使用Chrome、Firefox、Safari、Edge等现代浏览器，确保最佳体验。'
+          question: 'Which browsers does the system support?',
+          answer: 'We recommend using modern browsers such as Chrome, Firefox, Safari, Edge for the best experience.'
         },
         {
-          question: '查询速度慢怎么办？',
-          answer: '建议设置更具体的查询条件，避免返回过多数据。也可以减少结果数量限制。'
+          question: 'What to do if queries are slow?',
+          answer: 'We recommend setting more specific query conditions to avoid returning too much data. You can also reduce the result quantity limit.'
         },
         {
-          question: '数据格式说明',
-          answer: '所有金额数据以美元为单位，_cy表示当前年份，_py表示上一年。'
+          question: 'Data format explanation',
+          answer: 'All monetary data is in US dollars, _cy indicates current year, _py indicates previous year.'
         }
       ]
     }
@@ -83,29 +83,29 @@ const KnowledgeBase = () => {
 
   const dataFields = [
     {
-      category: '基本信息',
+      category: 'Basic Information',
       fields: [
-        'organization_name - 组织名称',
-        'ein - 雇主识别号码',
-        'state - 所在州',
-        'city - 所在城市'
+        'organization_name - Organization Name',
+        'ein - Employer Identification Number',
+        'state - State',
+        'city - City'
       ]
     },
     {
-      category: '财务信息',
+      category: 'Financial Information',
       fields: [
-        'total_revenue_cy - 当年总收入',
-        'total_assets_cy - 当年总资产',
-        'total_expenses_cy - 当年总支出',
-        'grants_paid_cy - 当年支付的资助'
+        'total_revenue_cy - Current Year Total Revenue',
+        'total_assets_cy - Current Year Total Assets',
+        'total_expenses_cy - Current Year Total Expenses',
+        'grants_paid_cy - Current Year Grants Paid'
       ]
     },
     {
-      category: '运营信息',
+      category: 'Operational Information',
       fields: [
-        'number_of_individuals_employed_cy - 当年员工数量',
-        'salaries_other_comp_cy - 当年薪资和其他补偿',
-        'total_fundraising_expenses_cy - 当年总筹款费用'
+        'number_of_individuals_employed_cy - Current Year Number of Employees',
+        'salaries_other_comp_cy - Current Year Salaries and Other Compensation',
+        'total_fundraising_expenses_cy - Current Year Total Fundraising Expenses'
       ]
     }
   ];
@@ -113,10 +113,10 @@ const KnowledgeBase = () => {
   return (
     <div>
       <Title level={2}>
-        <QuestionCircleOutlined /> 知识库
+        <QuestionCircleOutlined /> Knowledge Base
       </Title>
       <Text type="secondary">
-        常见问题解答和详细的使用指南
+        Frequently asked questions and detailed usage guides
       </Text>
 
       <Divider />
@@ -128,24 +128,24 @@ const KnowledgeBase = () => {
             {
               key: 'faq',
               href: '#faq',
-              title: '常见问题',
+              title: 'FAQ',
             },
             {
               key: 'data-guide',
               href: '#data-guide',
-              title: '数据指南',
+              title: 'Data Guide',
             },
             {
               key: 'best-practices',
               href: '#best-practices',
-              title: '最佳实践',
+              title: 'Best Practices',
             }
           ]}
         />
       </Card>
 
       {/* 常见问题 */}
-      <Card id="faq" title="常见问题" style={{ marginBottom: 24 }}>
+      <Card id="faq" title="Frequently Asked Questions" style={{ marginBottom: 24 }}>
         <Collapse 
           activeKey={activeKey} 
           onChange={setActiveKey}
@@ -184,16 +184,16 @@ const KnowledgeBase = () => {
       </Card>
 
       {/* 数据指南 */}
-      <Card id="data-guide" title="数据指南" style={{ marginBottom: 24 }}>
+      <Card id="data-guide" title="Data Guide" style={{ marginBottom: 24 }}>
         <Alert
-          message="数据来源说明"
-          description="本平台的数据来源于IRS公开的Form 990表格，经过清洗和标准化处理，确保数据的准确性和一致性。"
+          message="Data Source Description"
+          description="The platform's data is sourced from publicly available IRS Form 990 filings, cleaned and standardized to ensure data accuracy and consistency."
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
         />
 
-        <Title level={4}>主要字段说明</Title>
+        <Title level={4}>Main Field Descriptions</Title>
         {dataFields.map((category, index) => (
           <div key={index} style={{ marginBottom: 16 }}>
             <Text strong>{category.category}：</Text>
@@ -211,40 +211,40 @@ const KnowledgeBase = () => {
 
         <Divider />
 
-        <Title level={4}>数据质量说明</Title>
+        <Title level={4}>Data Quality Description</Title>
         <List
           size="small"
           dataSource={[
-            '数据来源于官方IRS文件，具有权威性',
-            '经过标准化处理，确保格式一致',
-            '包含数据完整性检查',
-            '定期更新和维护'
+            'Data sourced from official IRS files, ensuring authority',
+            'Standardized processing to ensure format consistency',
+            'Includes data integrity checks',
+            'Regular updates and maintenance'
           ]}
           renderItem={(item) => <List.Item>• {item}</List.Item>}
         />
       </Card>
 
       {/* 最佳实践 */}
-      <Card id="best-practices" title="最佳实践" style={{ marginBottom: 24 }}>
-        <Title level={4}>查询技巧</Title>
+      <Card id="best-practices" title="Best Practices" style={{ marginBottom: 24 }}>
+        <Title level={4}>Query Tips</Title>
         <List
           itemLayout="vertical"
           dataSource={[
             {
-              title: '使用精确关键词',
-              content: '使用组织名称的准确拼写或EIN号码可以获得最精确的结果。'
+              title: 'Use Precise Keywords',
+              content: 'Using accurate spelling of organization names or EIN numbers can yield the most precise results.'
             },
             {
-              title: '组合查询条件',
-              content: '结合多个查询条件可以缩小结果范围，提高查询效率。'
+              title: 'Combine Query Conditions',
+              content: 'Combining multiple query conditions can narrow down results and improve query efficiency.'
             },
             {
-              title: '利用模糊搜索',
-              content: '如果不确定完整名称，可以使用部分关键词进行模糊搜索。'
+              title: 'Utilize Fuzzy Search',
+              content: 'If you\'re unsure of the complete name, you can use partial keywords for fuzzy search.'
             },
             {
-              title: '合理设置结果数量',
-              content: '根据分析需求设置合适的结果数量，避免数据过多影响处理速度。'
+              title: 'Set Reasonable Result Quantities',
+              content: 'Set appropriate result quantities based on analysis needs to avoid too much data affecting processing speed.'
             }
           ]}
           renderItem={(item) => (
@@ -259,25 +259,25 @@ const KnowledgeBase = () => {
 
         <Divider />
 
-        <Title level={4}>数据分析建议</Title>
+        <Title level={4}>Data Analysis Recommendations</Title>
         <List
           size="small"
           dataSource={[
-            '对比不同年份的数据了解趋势变化',
-            '分析同行业组织的财务表现',
-            '关注关键财务指标如收入结构、支出比例',
-            '结合地理位置分析区域差异'
+            'Compare data from different years to understand trend changes',
+            'Analyze financial performance of organizations in the same industry',
+            'Focus on key financial indicators such as revenue structure and expense ratios',
+            'Combine geographic location analysis for regional differences'
           ]}
           renderItem={(item) => <List.Item>• {item}</List.Item>}
         />
       </Card>
 
       {/* 联系支持 */}
-      <Card title="获取帮助">
+      <Card title="Get Help">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Alert
-            message="需要更多帮助？"
-            description="如果您在使用过程中遇到问题，可以查看使用手册或联系技术支持团队。"
+            message="Need More Help?"
+            description="If you encounter problems during use, you can check the user manual or contact the technical support team."
             type="success"
             showIcon
           />
@@ -285,10 +285,10 @@ const KnowledgeBase = () => {
           <List
             size="small"
             dataSource={[
-              '查看使用手册了解详细操作步骤',
-              '检查网络连接和浏览器设置',
-              '确认查询条件是否正确设置',
-              '联系技术支持获取专业帮助'
+              'Check the user manual for detailed operation steps',
+              'Verify network connection and browser settings',
+              'Confirm that query conditions are set correctly',
+              'Contact technical support for professional assistance'
             ]}
             renderItem={(item) => <List.Item>• {item}</List.Item>}
           />

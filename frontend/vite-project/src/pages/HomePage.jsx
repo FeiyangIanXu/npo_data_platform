@@ -30,7 +30,7 @@ function HomePage() {
         }
       })
 
-              const response = await fetch(`http://127.0.0.1:8001/api/query?${urlParams.toString()}`)
+              const response = await fetch(`/api/query?${urlParams.toString()}`)
       if (!response.ok) {
         throw new Error('Network request failed')
       }
