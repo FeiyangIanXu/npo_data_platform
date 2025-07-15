@@ -20,7 +20,7 @@ class FilterRequest(BaseModel):
 
 def build_sql_condition(condition: FilterCondition) -> tuple:
     """
-    构建SQL条件
+    Build SQL condition
     
     Returns:
         (sql_condition, params)
@@ -70,44 +70,45 @@ def build_sql_condition(condition: FilterCondition) -> tuple:
 @router.post("/filter")
 async def advanced_filter(request: FilterRequest):
     """
-    高级筛选API
+    Advanced filtering API
     
-    支持的操作符:
-    - equals: 等于
-    - not_equals: 不等于
-    - contains: 包含
-    - in: 在列表中
-    - not_in: 不在列表中
-    - greater_than: 大于
-    - less_than: 小于
-    - greater_equal: 大于等于
-    - less_equal: 小于等于
-    - between: 在范围内
-    - is_null: 为空
-    - is_not_null: 不为空
+    Supported operators:
+    - equals: equal to
+    - not_equals: not equal to
+    - contains: contains
+    - in: in list
+    - not_in: not in list
+    - greater_than: greater than
+    - less_than: less than
+    - greater_equal: greater than or equal
+    - less_equal: less than or equal
+    - between: within range
+    - is_null: is null
+    - is_not_null: is not null
     """
     try:
         if not request.conditions:
-            raise HTTPException(status_code=400, detail="至少需要一个筛选条件")
+            raise HTTPException(status_code=400, detail="At least one filter condition is required")
         
         if request.logic not in ["AND", "OR"]:
-            raise HTTPException(status_code=400, detail="逻辑操作符必须是 AND 或 OR")
+            raise HTTPException(status_code=400, detail="Logic operator must be AND or OR")
         
-        # 验证字段名
+        # Validate field names (updated to standardized columns)
         valid_fields = [
             'campus', 'address', 'city', 'st', 'zip', 
             'part_i_summary_12_total_revenue_cy', 'employees', 'ein',
-            'fiscal_year'  # 新增财年字段
+            'fiscal_year',   # standardized fiscal year
+            'fiscal_month'   # standardized fiscal end month
         ]
         
         for condition in request.conditions:
             if condition.field not in valid_fields:
                 raise HTTPException(
                     status_code=400, 
-                    detail=f"无效的字段名: {condition.field}"
+                    detail=f"Invalid field name: {condition.field}"
                 )
         
-        # 构建SQL查询
+        # Build SQL query
         conditions = []
         params = []
         
@@ -119,19 +120,19 @@ async def advanced_filter(request: FilterRequest):
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
         
-        # 构建WHERE子句
+        # Build WHERE clause
         where_clause = f" {request.logic} ".join(conditions)
         
-        # 构建ORDER BY子句
+        # Build ORDER BY clause
         order_clause = ""
         if request.order_by:
             if request.order_by in valid_fields:
                 order_direction = "DESC" if request.order_direction.upper() == "DESC" else "ASC"
                 order_clause = f" ORDER BY {request.order_by} {order_direction}"
             else:
-                raise HTTPException(status_code=400, detail=f"无效的排序字段: {request.order_by}")
+                raise HTTPException(status_code=400, detail=f"Invalid order field: {request.order_by}")
         
-        # 执行查询
+        # Execute query
         sql = f"""
         SELECT * FROM nonprofits 
         WHERE {where_clause}
@@ -147,15 +148,15 @@ async def advanced_filter(request: FilterRequest):
         cursor.execute(sql, params)
         results = cursor.fetchall()
         
-        # 获取总记录数
+        # Get total count
         count_sql = f"SELECT COUNT(*) FROM nonprofits WHERE {where_clause}"
-        cursor.execute(count_sql, params[:-2])  # 去掉LIMIT和OFFSET参数
+        cursor.execute(count_sql, params[:-2])  # Remove LIMIT and OFFSET params
         total_count = cursor.fetchone()[0]
         
-        # 获取列名
+        # Get column names
         columns = [description[0] for description in cursor.description]
         
-        # 转换为字典列表
+        # Convert to dictionary list
         nonprofits = []
         for row in results:
             nonprofit = dict(zip(columns, row))
@@ -179,60 +180,60 @@ async def advanced_filter(request: FilterRequest):
 @router.get("/filter/fields")
 async def get_filter_fields():
     """
-    获取可用的筛选字段信息
+    Get available filter field information
     """
     return {
         "success": True,
         "fields": {
             "campus": {
                 "type": "string",
-                "description": "组织名称",
+                "description": "Organization name",
                 "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
             },
             "address": {
                 "type": "string", 
-                "description": "地址",
+                "description": "Address",
                 "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
             },
             "city": {
                 "type": "string",
-                "description": "城市",
+                "description": "City",
                 "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
             },
             "st": {
                 "type": "string",
-                "description": "州",
+                "description": "State",
                 "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
             },
             "zip": {
                 "type": "string",
-                "description": "邮编",
+                "description": "ZIP code",
                 "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
             },
             "part_i_summary_12_total_revenue_cy": {
                 "type": "number",
-                "description": "当前年度总收入",
+                "description": "Current year total revenue",
                 "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
             },
             "employees": {
                 "type": "number", 
-                "description": "员工数量",
-                "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
-            },
-            "filing_date": {
-                "type": "date",
-                "description": "申报日期",
+                "description": "Number of employees",
                 "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
             },
             "ein": {
                 "type": "string",
-                "description": "雇主识别号",
+                "description": "Employer Identification Number",
                 "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
             },
             "fiscal_year": {
                 "type": "number",
-                "description": "财年（以报表期末所在的公历年为准）",
+                "description": "Fiscal year (standardized calendar year, e.g. 2023)",
                 "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "in", "not_in", "is_null", "is_not_null"]
+            },
+            "fiscal_month": {
+                "type": "number",
+                "description": "Fiscal end month (standardized month number, 1-12)",
+                "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
             }
         },
         "logic_operators": ["AND", "OR"],
@@ -242,22 +243,22 @@ async def get_filter_fields():
 @router.get("/filter/examples")
 async def get_filter_examples():
     """
-    获取筛选示例
+    Get filter examples
     """
     return {
         "success": True,
         "examples": [
             {
-                "name": "高收入组织",
-                "description": "查找收入超过100万美元的组织",
+                "name": "High Revenue Organizations",
+                "description": "Find organizations with revenue over $1 million",
                 "conditions": [
                     {"field": "part_i_summary_12_total_revenue_cy", "operator": "greater_than", "value": 1000000}
                 ],
                 "logic": "AND"
             },
             {
-                "name": "加州医院",
-                "description": "查找加州的医院组织",
+                "name": "California Hospitals",
+                "description": "Find hospital organizations in California",
                 "conditions": [
                     {"field": "st", "operator": "equals", "value": "CA"},
                     {"field": "campus", "operator": "contains", "value": "hospital"}
@@ -265,26 +266,43 @@ async def get_filter_examples():
                 "logic": "AND"
             },
             {
-                "name": "大城市组织",
-                "description": "查找纽约、洛杉矶、芝加哥的组织",
+                "name": "Major City Organizations",
+                "description": "Find organizations in New York, Los Angeles, Chicago",
                 "conditions": [
                     {"field": "city", "operator": "in", "value": ["NEW YORK", "LOS ANGELES", "CHICAGO"]}
                 ],
                 "logic": "OR"
             },
             {
-                "name": "中等规模组织",
-                "description": "查找员工数量在10-100之间的组织",
+                "name": "Medium Size Organizations",
+                "description": "Find organizations with 10-100 employees",
                 "conditions": [
                     {"field": "employees", "operator": "between", "value": [10, 100]}
                 ],
                 "logic": "AND"
             },
             {
-                "name": "2023财年组织",
-                "description": "查找2023财年的组织",
+                "name": "2023 Fiscal Year Organizations",
+                "description": "Find organizations with 2023 fiscal year",
                 "conditions": [
                     {"field": "fiscal_year", "operator": "equals", "value": 2023}
+                ],
+                "logic": "AND"
+            },
+            {
+                "name": "December Year-End",
+                "description": "Find organizations with fiscal year ending in December",
+                "conditions": [
+                    {"field": "fiscal_month", "operator": "equals", "value": 12}
+                ],
+                "logic": "AND"
+            },
+            {
+                "name": "2023 June Year-End",
+                "description": "Find organizations with fiscal year ending in June 2023",
+                "conditions": [
+                    {"field": "fiscal_year", "operator": "equals", "value": 2023},
+                    {"field": "fiscal_month", "operator": "equals", "value": 6}
                 ],
                 "logic": "AND"
             }

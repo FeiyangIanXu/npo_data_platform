@@ -2,7 +2,8 @@ import pandas as pd
 import sqlite3
 import re
 import os
-from utils.helpers import extract_fiscal_year
+from typing import Optional, Tuple
+# 不再需要旧的日期解析函数，现在使用内置的 parse_date 函数
 
 def sanitize_name(name):
     """清理列名：将字符串转为小写，用下划线替换所有空格和特殊字符。"""
@@ -17,6 +18,43 @@ def is_pure_numeric(value):
     if pd.isna(value) or str(value).strip() == '':
         return False
     return str(value).strip().isdigit()
+
+def parse_date(date_str: str) -> Optional[Tuple[int, int]]:
+    """
+    从各种不规则的日期字符串中解析出（年份, 月份）。
+    能够处理 "M/YYYY", "YYYY/MM/DD", "M/D/YYYY" 等格式。
+    这是彻底解决日期问题的核心函数。
+    """
+    if pd.isna(date_str):
+        return None
+    date_str = str(date_str).strip()
+
+    # 格式 1: "M/YYYY" 或 "MM/YYYY" (e.g., "6/2023", "12/2022")
+    match = re.fullmatch(r'(\d{1,2})/(\d{4})', date_str)
+    if match:
+        month, year = map(int, match.groups())
+        return year, month
+
+    # 格式 2: "YYYY/MM/DD" (e.g., "2022/12/31")
+    match = re.fullmatch(r'(\d{4})/(\d{1,2})/\d{1,2}', date_str)
+    if match:
+        year, month = map(int, match.groups())
+        return year, month
+
+    # 格式 3: "M/D/YYYY" (e.g., "6/30/2023")
+    match = re.fullmatch(r'(\d{1,2})/\d{1,2}/(\d{4})', date_str)
+    if match:
+        month, year = int(match.group(1)), int(match.group(2))
+        return year, month
+
+    # 格式 4: "YYYY-MM-DD" (e.g., "2023-06-30")
+    match = re.fullmatch(r'(\d{4})-(\d{1,2})-\d{1,2}', date_str)
+    if match:
+        year, month = map(int, match.groups())
+        return year, month
+
+    # 如果都匹配不上，返回None
+    return None
 
 def process_four_row_semantic_header(csv_file_path):
     """
@@ -177,8 +215,8 @@ def run_data_pipeline():
     
     print(f"  > 最终列数: {len(df.columns)}")
 
-    # 新增步骤：创建标准化的 'fiscal_year' 列
-    print("\n新增步骤: 创建标准化的 'fiscal_year' 列...")
+    # 关键步骤：标准化财年和月份（V2版本 - 彻底治本）
+    print("\n步骤 4/5: 标准化财年和月份（治本方案）...")
     
     # 查找财年结束日期列
     fy_end_column_name = None
@@ -189,42 +227,81 @@ def run_data_pipeline():
     
     if fy_end_column_name:
         print(f"  > 找到财年结束日期列: '{fy_end_column_name}'")
-        df['fiscal_year'] = df[fy_end_column_name].apply(extract_fiscal_year)
-        # 将浮点数转换为可空的整数类型
-        df['fiscal_year'] = df['fiscal_year'].astype('Int64')
-        print(f"  > 成功创建 'fiscal_year' 列")
-        # 查看一下创建结果
-        print(f"  > 财年分布示例:")
+        print(f"  > 正在应用强大的日期解析逻辑...")
+        
+        # 应用我们强大的解析函数
+        parsed_dates = df[fy_end_column_name].apply(parse_date)
+
+        # 创建新的、干净的列
+        df['fiscal_year'] = parsed_dates.apply(lambda x: x[0] if x else None).astype('Int64')
+        df['fiscal_month'] = parsed_dates.apply(lambda x: x[1] if x else None).astype('Int64')
+
+        print(f"  > 成功创建 'fiscal_year' 和 'fiscal_month' 列")
+        
+        # 数据标准化抽样检查
+        print(f"  > 数据标准化抽样检查:")
+        sample_data = df[[fy_end_column_name, 'fiscal_year', 'fiscal_month']].head(10)
+        for idx, row in sample_data.iterrows():
+            original = row[fy_end_column_name]
+            year = row['fiscal_year']
+            month = row['fiscal_month']
+            print(f"    '{original}' -> FY:{year}, Month:{month}")
+        
+        # 数据质量统计
+        print(f"  > 数据质量统计:")
+        total_records = len(df)
+        successful_parses = df['fiscal_year'].notna().sum()
+        print(f"    总记录数: {total_records}")
+        print(f"    成功解析: {successful_parses}")
+        print(f"    解析成功率: {successful_parses/total_records*100:.1f}%")
+        
+        # 年份分布
+        print(f"  > 财年分布:")
         fiscal_year_counts = df['fiscal_year'].value_counts().head(5)
         for year, count in fiscal_year_counts.items():
-            print(f"    {year}: {count} 条记录")
+            print(f"    FY {year}: {count} 条记录")
+            
+        # 月份分布
+        print(f"  > 财报结束月份分布:")
+        fiscal_month_counts = df['fiscal_month'].value_counts().sort_index()
+        for month, count in fiscal_month_counts.items():
+            print(f"    {month}月: {count} 条记录")
+            
     else:
-        print(f"  > 警告: 未找到财年结束日期列，无法创建 'fiscal_year'")
+        print(f"  > 严重警告: 未找到财年结束日期列，日期标准化失败！")
         # 尝试查找其他可能的日期列
         date_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ['date', 'year', 'period'])]
         if date_columns:
             print(f"  > 发现可能的日期列: {date_columns[:3]}")
+        return
 
-    # 步骤4：连接数据库并写入数据
-    print(f"\n步骤 4/4: 连接数据库并写入数据...")
+    # 步骤5：连接数据库并彻底重建数据
+    print(f"\n步骤 5/5: 连接数据库并彻底重建数据...")
     try:
-        print(f"  > 正在连接数据库: {db_path}")
+        # 删除旧数据库文件以确保完全重建
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            print(f"  > 已删除旧的数据库文件: {db_path}")
+            
+        print(f"  > 正在连接新数据库: {db_path}")
         conn = sqlite3.connect(db_path)
         
-        print(f"  > 正在写入表 '{table_name}'（完全替换模式）...")
+        print(f"  > 正在写入表 '{table_name}' 包含标准化的日期列...")
         df.to_sql(table_name, conn, if_exists='replace', index=False)
         
         conn.close()
         print(f"  > 成功写入 {len(df)} 行数据，{len(df.columns)} 列")
+        print(f"  > 其中包含干净的 'fiscal_year' 和 'fiscal_month' 列")
         
     except Exception as e:
         print(f"错误：写入数据库时发生异常: {e}")
         return
 
-    print("\n" + "=" * 50)
-    print("[OK] 四行语义化表头数据管道执行成功！")
-    print(f"[OK] 数据库 {db_path} 中的表 '{table_name}' 已更新")
-    print("=" * 50)
+    print("\n" + "=" * 60)
+    print("[OK] V2版数据管道执行成功！")
+    print(f"[OK] 数据库 {db_path} 已被全新的、干净的数据覆盖")
+    print("[OK] 日期标准化完成：fiscal_year 和 fiscal_month 列已创建")
+    print("=" * 60)
 
 # 脚本入口点
 if __name__ == "__main__":

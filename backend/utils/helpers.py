@@ -241,32 +241,9 @@ def safe_float(value: Any, default: float = 0.0) -> float:
     except (ValueError, TypeError):
         return default 
 
-def extract_fiscal_year(fiscal_year_str: str) -> Optional[int]:
-    """
-    从 fiscal year 字符串中提取标准化的年份。
-    按照WRDS风格：以报表期末所在的公历年为准。
-
-    例如：
-    - "6/2023" -> 2023
-    - "2024/4/30" -> 2024
-    """
-    if not fiscal_year_str:
-        return None
-
-    fiscal_year_str = str(fiscal_year_str).strip()
-
-    # 匹配 "M/YYYY" 或 "MM/YYYY"
-    match = re.search(r'/(\d{4})$', fiscal_year_str)
-    if match:
-        return int(match.group(1))
-
-    # 匹配 "YYYY/M/D"
-    match = re.search(r'^(\d{4})/', fiscal_year_str)
-    if match:
-        return int(match.group(1))
-
-    # 匹配纯四位数字年份
-    if fiscal_year_str.isdigit() and len(fiscal_year_str) == 4:
-        return int(fiscal_year_str)
-
-    return None 
+# 注意：原有的日期解析函数（extract_fiscal_year, extract_month_from_date_str）已移除
+# 这些功能现在在数据管道层面的 parse_date 函数中完成，确保数据源头就是干净的
+# 这是"治本"方案的体现 - 在数据进入数据库时就标准化，而不是在API层面重复解析
+# 
+# 所有 API 现在直接使用标准化的 fiscal_year 和 fiscal_month 列，
+# 这些列包含纯净的数字数据，无需任何解析处理 

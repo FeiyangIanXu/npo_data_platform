@@ -7,16 +7,19 @@ const { Title, Paragraph } = Typography;
 
 const QueryForm = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loadingYears, setLoadingYears] = useState(true);
+  const [loadingMonths, setLoadingMonths] = useState(false);
   const [availableYears, setAvailableYears] = useState([]);
+  const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Load available years
     const fetchYears = async () => {
       try {
-        setLoading(true);
+        setLoadingYears(true);
         const response = await fetch('/api/available-years');
         if (!response.ok) {
           throw new Error('Failed to fetch years');
@@ -27,12 +30,40 @@ const QueryForm = () => {
         message.error('Unable to load available years. Please check if the backend service is running.');
         console.error(error);
       } finally {
-        setLoading(false);
+        setLoadingYears(false);
       }
     };
 
     fetchYears();
   }, []);
+
+  // Dynamic month loading based on selected year
+  useEffect(() => {
+    if (selectedYear) {
+      const fetchMonths = async () => {
+        setLoadingMonths(true);
+        setAvailableMonths([]);
+        setSelectedMonth(null);
+        try {
+          const response = await fetch(`/api/available-months?year=${selectedYear}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch months');
+          }
+          const data = await response.json();
+          setAvailableMonths(data.months || []);
+        } catch (error) {
+          message.error(`Unable to load available months for ${selectedYear}.`);
+          console.error(error);
+        } finally {
+          setLoadingMonths(false);
+        }
+      };
+      fetchMonths();
+    } else {
+      setAvailableMonths([]);
+      setSelectedMonth(null);
+    }
+  }, [selectedYear]);
 
   const handleNextStep = () => {
     if (!selectedYear) {
@@ -50,6 +81,17 @@ const QueryForm = () => {
     setSelectedYear(value);
   };
 
+  const handleMonthChange = (value) => {
+    setSelectedMonth(value);
+  };
+
+  // Convert month number to English name
+  const monthToName = (monthNumber) => {
+    const date = new Date();
+    date.setMonth(monthNumber - 1);
+    return date.toLocaleString('en-US', { month: 'long' });
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
@@ -60,48 +102,71 @@ const QueryForm = () => {
               According to WRDS standards, the fiscal year is based on the calendar year in which the reporting period ends.
             </Paragraph>
             
-            <div className="year-selection">
-              {loading ? (
-                                 <div className="loading-container">
-                   <Spin size="large" />
-                   <p>Loading available years...</p>
-                 </div>
-              ) : (
-                <>
-                                     <div className="select-container">
-                     <label htmlFor="year-select">Fiscal Year Selection:</label>
-                    <Select
-                      id="year-select"
-                      style={{ width: 200, marginBottom: 20 }}
-                                             placeholder="Select Fiscal Year"
-                      onChange={handleYearChange}
-                      value={selectedYear}
-                      showSearch
-                      filterOption={(input, option) =>
-                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                      }
-                    >
-                                             {availableYears.map(year => (
-                         <Select.Option key={year} value={year}>
-                           FY {year}
-                         </Select.Option>
-                       ))}
-                    </Select>
-                  </div>
-                  
-                  {selectedYear && (
-                                         <div className="year-info">
-                       <Paragraph>
-                         <strong>Selected:</strong> FY {selectedYear}
-                       </Paragraph>
-                       <Paragraph type="secondary">
-                         This will filter all organizations with fiscal years ending in {selectedYear}
-                       </Paragraph>
-                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                        <Row gutter={16} align="bottom" style={{ marginBottom: 20 }}>
+              <Col span={8}>
+                <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                  Fiscal Year:
+                </label>
+                {loadingYears ? (
+                  <Spin />
+                ) : (
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="Select Year"
+                    onChange={handleYearChange}
+                    value={selectedYear}
+                    showSearch
+                    filterOption={(input, option) =>
+                      option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                    }
+                  >
+                    {availableYears.map(year => (
+                      <Select.Option key={year} value={year}>FY {year}</Select.Option>
+                    ))}
+                  </Select>
+                )}
+              </Col>
+              
+              <Col span={8}>
+                <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                  FY Ending Month (Optional):
+                </label>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="Any Month"
+                  value={selectedMonth}
+                  onChange={handleMonthChange}
+                  disabled={!selectedYear || loadingMonths}
+                  loading={loadingMonths}
+                  allowClear
+                >
+                  {availableMonths.map(month => (
+                    <Select.Option key={month} value={month}>
+                      {monthToName(month)}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Col>
+            </Row>
+            
+            {selectedYear && (
+              <div className="selection-info">
+                <Paragraph>
+                  <strong>Selected:</strong> FY {selectedYear}
+                  {selectedMonth && ` ending in ${monthToName(selectedMonth)}`}
+                </Paragraph>
+                <Paragraph type="secondary">
+                  This will filter organizations with fiscal years ending in {selectedYear}
+                  {selectedMonth && ` specifically in ${monthToName(selectedMonth)}`}
+                  {!selectedMonth && `, across all ending months`}
+                </Paragraph>
+                {availableMonths.length > 0 && (
+                  <Paragraph type="secondary" style={{ fontSize: '12px', fontStyle: 'italic' }}>
+                    Available ending months for FY {selectedYear}: {availableMonths.map(m => monthToName(m)).join(', ')}
+                  </Paragraph>
+                )}
+              </div>
+            )}
             
                          <div className="step-actions">
                <Button type="primary" onClick={handleNextStep} disabled={!selectedYear}>
@@ -305,7 +370,7 @@ const QueryForm = () => {
           font-weight: 500;
         }
         
-        .year-info {
+        .selection-info {
           background: #f6ffed;
           border: 1px solid #b7eb8f;
           border-radius: 6px;

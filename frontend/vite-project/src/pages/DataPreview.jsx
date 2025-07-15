@@ -20,7 +20,7 @@ import axios from 'axios';
 
 const { Title, Text } = Typography;
 
-const API_BASE_URL = 'http://localhost:8001/api';
+const API_BASE_URL = '/api';
 
 const DataPreview = () => {
   const [data, setData] = useState([]);
@@ -29,27 +29,29 @@ const DataPreview = () => {
 
   useEffect(() => {
     fetchPreviewData();
-    fetchStatistics();
   }, []);
 
   const fetchPreviewData = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/query?limit=50`);
-      setData(response.data.data);
+      setLoading(true);
+      // Use the search endpoint with empty query to get preview data
+      const response = await axios.get(`${API_BASE_URL}/search`, { 
+        params: { 
+          q: '', 
+          limit: 50 
+        } 
+      });
+      
+      if (response.data.success && response.data.results) {
+        setData(response.data.results);
+      } else {
+        message.error('No data received from server');
+      }
     } catch (error) {
       console.error('Failed to fetch preview data:', error);
-      message.error('Failed to fetch data');
+      message.error('Failed to fetch data. Please check if the backend service is running.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStatistics = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/statistics`);
-      setStatistics(response.data);
-    } catch (error) {
-      console.error('Failed to fetch statistics:', error);
     }
   };
 
@@ -60,24 +62,28 @@ const DataPreview = () => {
       key: 'campus',
       width: 250,
       ellipsis: true,
+      render: (text) => text || '-',
     },
     {
       title: 'EIN',
-      dataIndex: 'form_990_top_block_box_d_ein_cy',
+      dataIndex: 'ein',
       key: 'ein',
       width: 120,
+      render: (text) => text || '-',
     },
     {
       title: 'State',
       dataIndex: 'st',
       key: 'st',
       width: 80,
+      render: (text) => text || '-',
     },
     {
       title: 'City',
       dataIndex: 'city',
       key: 'city',
       width: 120,
+      render: (text) => text || '-',
     },
     {
       title: 'Total Revenue',
@@ -86,66 +92,33 @@ const DataPreview = () => {
       width: 150,
       render: (text) => {
         if (!text) return '-';
-        const value = text.replace(/[$,]/g, '');
-        const num = parseFloat(value);
-        if (isNaN(num)) return text;
-        return `$${(num / 1000000).toFixed(1)}M`;
-      },
-    },
-    {
-      title: 'Total Assets',
-      dataIndex: 'part_i_summary_22_total_assets_cy',
-      key: 'total_assets',
-      width: 150,
-      render: (text) => {
-        if (!text) return '-';
-        const value = text.replace(/[$,]/g, '');
-        const num = parseFloat(value);
+        const num = parseFloat(text);
         if (isNaN(num)) return text;
         return `$${(num / 1000000).toFixed(1)}M`;
       },
     },
     {
       title: 'Employees',
-      dataIndex: 'part_i_summary_5_number_of_individuals_employed_cy',
+      dataIndex: 'employees',
       key: 'employees',
       width: 100,
       render: (text) => text || '-',
     },
+    {
+      title: 'Fiscal Year',
+      dataIndex: 'fiscal_year',
+      key: 'fiscal_year',
+      width: 100,
+      render: (text) => text || '-',
+    },
+    {
+      title: 'Fiscal Month',
+      dataIndex: 'fiscal_month',
+      key: 'fiscal_month',
+      width: 120,
+      render: (text) => text || '-',
+    },
   ];
-
-  const handleSearch = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      
-      if (searchForm.organization_name) {
-        params.append('organization_name', searchForm.organization_name);
-      }
-      if (searchForm.ein) {
-        params.append('ein', searchForm.ein);
-      }
-      if (searchForm.state) {
-        params.append('st', searchForm.state);
-      }
-      if (searchForm.city) {
-        params.append('city', searchForm.city);
-      }
-      
-      params.append('page', currentPage.toString());
-      params.append('pageSize', pageSize.toString());
-      
-      const response = await axios.get(`${API_BASE_URL}/api/query?${params}`);
-      setData(response.data.data);
-      setTotal(response.data.total);
-      setCurrentPage(response.data.page);
-    } catch (error) {
-      console.error('Query failed:', error);
-      message.error('Query failed, please try again');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div>
@@ -156,61 +129,7 @@ const DataPreview = () => {
         Preview IRS nonprofit Form 990 dataset to understand data structure and content
       </Text>
 
-      {/* 统计信息 */}
-      {statistics && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Total Organizations"
-                value={statistics.total_organizations}
-                prefix={<BarChartOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="States Covered"
-                value={statistics.state_distribution?.length || 0}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Data Fields"
-                value={statistics.fields?.count || 0}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="Data Year"
-                value="2023"
-              />
-            </Card>
-          </Col>
-        </Row>
-      )}
-
-      {/* 州分布 */}
-      {statistics?.state_distribution && (
-        <Card title="State Distribution" style={{ marginBottom: 24 }}>
-          <Row gutter={[8, 8]}>
-            {statistics.state_distribution.map((item, index) => (
-              <Col key={index}>
-                <Tag color="blue">
-                  {item.state}: {item.count}
-                </Tag>
-              </Col>
-            ))}
-          </Row>
-        </Card>
-      )}
-
-      {/* 数据表格 */}
+      {/* Data Table */}
       <Card 
         title={
           <Space>
@@ -219,17 +138,26 @@ const DataPreview = () => {
           </Space>
         }
         extra={
-          <Button icon={<DownloadOutlined />}>
+          <Button 
+            icon={<DownloadOutlined />}
+            onClick={() => message.info('Export functionality will be available soon')}
+          >
             Export Full Data
           </Button>
         }
+        style={{ marginTop: 24 }}
       >
         <Table
           columns={columns}
           dataSource={data}
-          rowKey={(record, index) => index}
+          rowKey={(record, index) => record.ein || index}
           loading={loading}
-          pagination={false}
+          pagination={{
+            pageSize: 50,
+            showSizeChanger: false,
+            showQuickJumper: false,
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`
+          }}
           scroll={{ x: 1000 }}
           size="middle"
         />

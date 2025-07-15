@@ -2,23 +2,23 @@ from fastapi import APIRouter, Query, HTTPException
 from typing import List, Optional
 import sqlite3
 import re
-from utils.helpers import extract_fiscal_year
+# No longer need complex date parsing functions since data source is clean!
 
 router = APIRouter()
 
 def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int = 50):
     """
-    搜索非营利组织数据
+    Search nonprofit organization data
     
     Args:
-        query: 搜索关键词
-        fields: 要搜索的字段列表
-        limit: 返回结果数量限制
+        query: Search keyword
+        fields: List of fields to search
+        limit: Limit of returned results
     """
     if fields is None:
         fields = ['campus', 'address', 'city', 'st', 'zip']
     
-    # 构建搜索条件
+    # Build search conditions
     search_conditions = []
     params = []
     
@@ -49,16 +49,16 @@ def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int
         LIMIT ?
         """
         
-        # 添加排序参数
+        # Add sorting parameters
         params.extend([f"{query}%", f"{query}%", limit])
         
         cursor.execute(sql, params)
         results = cursor.fetchall()
         
-        # 获取列名
+        # Get column names
         columns = [description[0] for description in cursor.description]
         
-        # 转换为字典列表
+        # Convert to dictionary list
         nonprofits = []
         for row in results:
             nonprofit = dict(zip(columns, row))
@@ -72,26 +72,27 @@ def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int
 
 @router.get("/search")
 async def search_api(
-    q: str = Query(..., description="搜索关键词"),
-    fields: Optional[str] = Query("campus,address,city,st", description="搜索字段，用逗号分隔"),
-    limit: int = Query(50, ge=1, le=1000, description="返回结果数量限制")
+    q: str = Query("", description="Search keyword"),
+    fields: Optional[str] = Query("campus,address,city,st", description="Search fields, comma separated"),
+    limit: int = Query(50, ge=1, le=1000, description="Limit of returned results (1-1000)")
 ):
     """
-    搜索非营利组织
+    Search nonprofit organizations
     
-    - **q**: 搜索关键词
-    - **fields**: 要搜索的字段，用逗号分隔（如：name,address,city）
-    - **limit**: 返回结果数量限制（1-1000）
+    - **q**: Search keyword
+    - **fields**: Fields to search, comma separated (e.g.: name,address,city)
+    - **limit**: Limit of returned results (1-1000)
     """
+    # Allow empty query for preview data
     if not q.strip():
-        raise HTTPException(status_code=400, detail="搜索关键词不能为空")
+        q = ""  # Set to empty string for fetching preview data
     
-    # 解析搜索字段
+    # Parse search fields
     if not fields:
         fields = "campus,address,city,st"
     field_list = [f.strip() for f in fields.split(',') if f.strip()]
     
-    # 验证字段
+    # Validate fields
     valid_fields = ['campus', 'address', 'city', 'st', 'zip', 'part_i_summary_12_total_revenue_cy', 'employees']
     field_list = [f for f in field_list if f in valid_fields]
     
@@ -99,29 +100,52 @@ async def search_api(
         field_list = ['campus', 'address', 'city', 'st']
     
     try:
-        results = search_nonprofits(q, field_list, limit)
-        return {
-            "success": True,
-            "query": q,
-            "fields": field_list,
-            "count": len(results),
-            "results": results
-        }
+        # If query is empty, fetch preview data
+        if not q:
+            conn = sqlite3.connect('irs.db')
+            cursor = conn.cursor()
+            
+            sql = "SELECT * FROM nonprofits ORDER BY campus LIMIT ?"
+            cursor.execute(sql, [limit])
+            results = cursor.fetchall()
+            
+            columns = [description[0] for description in cursor.description]
+            nonprofits = [dict(zip(columns, row)) for row in results]
+            
+            conn.close()
+            
+            return {
+                "success": True,
+                "query": q,
+                "fields": field_list,
+                "count": len(nonprofits),
+                "results": nonprofits
+            }
+        else:
+            results = search_nonprofits(q, field_list, limit)
+            return {
+                "success": True,
+                "query": q,
+                "fields": field_list,
+                "count": len(results),
+                "results": results
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/search/advanced")
 async def advanced_search(
-    name: Optional[str] = Query(None, description="组织名称"),
-    state: Optional[str] = Query(None, description="州"),
-    city: Optional[str] = Query(None, description="城市"),
-    org_type: Optional[str] = Query(None, description="组织类型"),
-    min_income: Optional[float] = Query(None, description="最小收入"),
-    max_income: Optional[float] = Query(None, description="最大收入"),
+    name: Optional[str] = Query(None, description="Organization name"),
+    state: Optional[str] = Query(None, description="State"),
+    city: Optional[str] = Query(None, description="City"),
+    fiscal_year: Optional[int] = Query(None, description="Fiscal year (e.g. 2023)"),
+    fiscal_month: Optional[int] = Query(None, description="Fiscal end month (1-12)"),
+    min_income: Optional[float] = Query(None, description="Minimum income"),
+    max_income: Optional[float] = Query(None, description="Maximum income"),
     limit: int = Query(50, ge=1, le=1000)
 ):
     """
-    高级搜索 - 支持多个条件组合
+    Advanced search - supports multiple condition combinations
     """
     try:
         conn = sqlite3.connect('irs.db')
@@ -142,9 +166,13 @@ async def advanced_search(
             conditions.append("city LIKE ?")
             params.append(f"%{city}%")
         
-        # if org_type:
-        #     conditions.append("org_type = ?")
-        #     params.append(org_type)
+        if fiscal_year is not None:
+            conditions.append("fiscal_year = ?")
+            params.append(fiscal_year)
+        
+        if fiscal_month is not None:
+            conditions.append("fiscal_month = ?")
+            params.append(fiscal_month)
         
         if min_income is not None:
             conditions.append("part_i_summary_12_total_revenue_cy >= ?")
@@ -184,43 +212,48 @@ async def advanced_search(
 @router.get("/available-years")
 async def get_available_years():
     """
-    获取所有可用的年度（以报表期末所在的公历年为准）
-    按照WRDS风格，标准化为报表期末所在的公历年
+    Get all available years (query directly from standardized fiscal_year column)
+    Data source is clean, API becomes extremely simple and efficient
     """
     try:
         conn = sqlite3.connect('irs.db')
         cursor = conn.cursor()
         
-        # 获取所有列名
-        cursor.execute('PRAGMA table_info(nonprofits)')
-        columns = [col[1] for col in cursor.fetchall()]
+        # SQL query becomes extremely simple - directly use clean columns
+        cursor.execute(
+            "SELECT DISTINCT fiscal_year FROM nonprofits WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC"
+        )
         
-        # 查找fiscal year end列
-        fiscal_year_column = None
-        for col in columns:
-            if 'fy_ending' in col.lower() or 'fiscal' in col.lower():
-                fiscal_year_column = col
-                break
-        
-        if not fiscal_year_column:
-            raise HTTPException(status_code=500, detail="未找到报表期末年份相关字段")
-        
-        # 获取所有唯一的fiscal year end值
-        cursor.execute(f'SELECT DISTINCT "{fiscal_year_column}" FROM nonprofits WHERE "{fiscal_year_column}" IS NOT NULL AND "{fiscal_year_column}" != ""')
-        fiscal_years = cursor.fetchall()
-        
-        # 提取并标准化年份
-        years = set()
-        for (fiscal_year,) in fiscal_years:
-            if fiscal_year:
-                year = extract_fiscal_year(fiscal_year)
-                if year:
-                    years.add(year)
-        
+        # Directly get sorted year list
+        years = [row[0] for row in cursor.fetchall()]
         conn.close()
         
-        # 返回排序后的年份列表（降序，最新的在前）
-        return {"years": sorted(list(years), reverse=True)}
+        return {"years": years}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取年度数据失败: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to get year data: {str(e)}")
+
+@router.get("/available-months")
+async def get_available_months(year: int = Query(..., description="Fiscal year to query available months")):
+    """
+    For a given fiscal year, get all available fiscal end months.
+    Now query directly from clean 'fiscal_month' column, efficient and reliable.
+    """
+    try:
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+
+        # SQL query becomes extremely simple - directly use clean columns
+        cursor.execute(
+            "SELECT DISTINCT fiscal_month FROM nonprofits WHERE fiscal_year = ? AND fiscal_month IS NOT NULL ORDER BY fiscal_month",
+            (year,)
+        )
+        
+        # Directly get sorted month list
+        months = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        return {"months": months}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get available months: {str(e)}") 
