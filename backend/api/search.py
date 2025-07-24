@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Body
 from typing import List, Optional
 import sqlite3
 import re
@@ -256,4 +256,161 @@ async def get_available_months(year: int = Query(..., description="Fiscal year t
         return {"months": months}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get available months: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to get available months: {str(e)}")
+
+@router.get("/available-states")
+async def get_available_states(fiscal_year: Optional[int] = Query(None, description="Fiscal year to filter states")):
+    """
+    Get all available states, optionally filtered by fiscal year
+    """
+    try:
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+        
+        if fiscal_year:
+            cursor.execute(
+                "SELECT DISTINCT st FROM nonprofits WHERE fiscal_year = ? AND st IS NOT NULL ORDER BY st",
+                (fiscal_year,)
+            )
+        else:
+            cursor.execute(
+                "SELECT DISTINCT st FROM nonprofits WHERE st IS NOT NULL ORDER BY st"
+            )
+        
+        states = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        return {"states": states}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get available states: {str(e)}")
+
+@router.get("/available-cities")
+async def get_available_cities(
+    fiscal_year: Optional[int] = Query(None, description="Fiscal year to filter cities"),
+    state: Optional[str] = Query(None, description="State to filter cities")
+):
+    """
+    Get all available cities, optionally filtered by fiscal year and/or state
+    """
+    try:
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+        
+        conditions = []
+        params = []
+        
+        if fiscal_year:
+            conditions.append("fiscal_year = ?")
+            params.append(fiscal_year)
+        
+        if state:
+            conditions.append("st = ?")
+            params.append(state.upper())
+        
+        # Always filter out null cities
+        conditions.append("city IS NOT NULL")
+        
+        where_clause = " AND ".join(conditions) if conditions else "city IS NOT NULL"
+        
+        sql = f"SELECT DISTINCT city FROM nonprofits WHERE {where_clause} ORDER BY city"
+        cursor.execute(sql, params)
+        
+        cities = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        return {"cities": cities}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get available cities: {str(e)}")
+
+# Enhanced search endpoint to support batch search from frontend
+@router.post("/search/batch")
+async def batch_search_api(
+    request: dict = Body(...)
+):
+    """
+    Batch search for multiple organization names or EINs
+    Supports the enhanced frontend search functionality
+    """
+    try:
+        fiscal_year = request.get('fiscal_year')
+        fiscal_month = request.get('fiscal_month')
+        search_terms = request.get('search_terms', [])
+        
+        if not fiscal_year:
+            raise HTTPException(status_code=400, detail="Fiscal year is required")
+        
+        if not search_terms:
+            raise HTTPException(status_code=400, detail="Search terms are required")
+        
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+        
+        # Build search conditions for multiple terms
+        all_results = []
+        
+        for term in search_terms:
+            term = term.strip()
+            if not term:
+                continue
+                
+            # Base conditions
+            conditions = []
+            params = []
+            
+            # Add fiscal year condition
+            conditions.append("fiscal_year = ?")
+            params.append(fiscal_year)
+            
+            # Add fiscal month condition if provided
+            if fiscal_month:
+                conditions.append("fiscal_month = ?")
+                params.append(fiscal_month)
+            
+            # Search in campus (organization name) and EIN
+            search_condition = "(campus LIKE ? OR ein LIKE ?)"
+            conditions.append(search_condition)
+            params.extend([f"%{term}%", f"%{term}%"])
+            
+            where_clause = " AND ".join(conditions)
+            
+            sql = f"""
+            SELECT * FROM nonprofits 
+            WHERE {where_clause}
+            ORDER BY 
+                CASE 
+                    WHEN campus LIKE ? THEN 1
+                    WHEN ein LIKE ? THEN 2
+                    ELSE 3
+                END,
+                campus
+            LIMIT 50
+            """
+            
+            # Add sorting parameters
+            params.extend([f"{term}%", f"{term}%"])
+            
+            cursor.execute(sql, params)
+            results = cursor.fetchall()
+            
+            # Get column names
+            columns = [description[0] for description in cursor.description]
+            
+            # Convert to dictionary list and add to results
+            for row in results:
+                nonprofit = dict(zip(columns, row))
+                # Avoid duplicates by checking EIN
+                if not any(existing['ein'] == nonprofit['ein'] for existing in all_results):
+                    all_results.append(nonprofit)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "count": len(all_results),
+            "results": all_results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

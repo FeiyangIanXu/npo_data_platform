@@ -6,6 +6,23 @@
 
 ## ✅ 已完成的功能
 
+
+
+New 5-Step Query Funnel:
+
+Step 1: Time Selection (Revised): This step will be upgraded to our new model. It will feature a primary filter for Fiscal Year and a secondary, optional filter for Fiscal Year Start Month. This replaces the previous, more complex date-range picker concept.
+
+Step 2: Universe Screening: Users can apply broad filters (Geography, Financials, etc.) to narrow down the dataset within their chosen time frame.
+
+Step 3: Specific Identification & Confirmation: Instead of a simple search, this step will present a results list from Step 2 with checkboxes. This allows users to review and make a final selection of the exact companies they wish to analyze, giving them ultimate control.
+
+Step 4: Variable Selection: Remains as planned, allowing users to choose specific data fields.
+
+Step 5: Output & Export: Remains as planned, offering various output formats.
+
+
+
+
 ### 🔄 **Step 1: 年份选择**
 - ✅ 动态加载可用年份
 - ✅ 与后端联动，仅显示有数据的年份

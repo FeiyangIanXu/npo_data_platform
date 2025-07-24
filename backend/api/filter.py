@@ -308,3 +308,102 @@ async def get_filter_examples():
             }
         ]
     } 
+
+@router.post("/filter/enhanced")
+async def enhanced_filter_for_frontend(
+    request: dict = Body(...)
+):
+    """
+    Enhanced filter endpoint specifically designed for the frontend QueryForm
+    Supports geographic, financial, and operational filtering with fiscal year/month
+    """
+    try:
+        # Extract values from request body
+        fiscal_year = request.get('fiscal_year')
+        fiscal_month = request.get('fiscal_month')
+        geo_filters = request.get('geo_filters')
+        financial_filters = request.get('financial_filters')
+        operational_filters = request.get('operational_filters')
+        
+        if not fiscal_year:
+            raise HTTPException(status_code=400, detail="Fiscal year is required")
+        
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+        
+        conditions = []
+        params = []
+        
+        # Always filter by fiscal year
+        conditions.append("fiscal_year = ?")
+        params.append(fiscal_year)
+        
+        # Filter by fiscal month if provided
+        if fiscal_month:
+            conditions.append("fiscal_month = ?")
+            params.append(fiscal_month)
+        
+        # Geographic filters
+        if geo_filters:
+            st_value = geo_filters.get('st')
+            if st_value:
+                conditions.append("st = ?")
+                params.append(st_value.upper())
+            
+            city_value = geo_filters.get('city')
+            if city_value:
+                conditions.append("city = ?")
+                params.append(city_value.upper())
+        
+        # Financial filters
+        if financial_filters:
+            if financial_filters.get('min_revenue') is not None:
+                conditions.append("part_i_summary_12_total_revenue_cy >= ?")
+                params.append(financial_filters['min_revenue'])
+            
+            if financial_filters.get('max_revenue') is not None:
+                conditions.append("part_i_summary_12_total_revenue_cy <= ?")
+                params.append(financial_filters['max_revenue'])
+        
+        # Operational filters (assuming there's an ILU field or similar)
+        if operational_filters:
+            if operational_filters.get('min_ilu') is not None:
+                # Note: You may need to adjust the field name based on your actual database schema
+                conditions.append("employees >= ?")  # Using employees as a proxy for operational scale
+                params.append(operational_filters['min_ilu'])
+            
+            if operational_filters.get('max_ilu') is not None:
+                conditions.append("employees <= ?")
+                params.append(operational_filters['max_ilu'])
+        
+        where_clause = " AND ".join(conditions)
+        
+        sql = f"""
+        SELECT * FROM nonprofits 
+        WHERE {where_clause}
+        ORDER BY part_i_summary_12_total_revenue_cy DESC, campus
+        LIMIT 1000
+        """
+        
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Convert to dictionary list
+        nonprofits = []
+        for row in results:
+            nonprofit = dict(zip(columns, row))
+            nonprofits.append(nonprofit)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "count": len(nonprofits),
+            "results": nonprofits
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
