@@ -26,6 +26,7 @@ const QueryForm = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [loadingYears, setLoadingYears] = useState(true);
   const [loadingMonths, setLoadingMonths] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [availableYears, setAvailableYears] = useState([]);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedYear, setSelectedYear] = useState(null);
@@ -215,138 +216,83 @@ const QueryForm = () => {
 
   // Handle Step 2 - Universe Screening with optional filters
   const handleStep2Next = async () => {
+    setLoading(true);
+    let finalResults = [];
+
     try {
-      let results = [];
+        let response;
+        if (filterMode === 'criteria') {
+            // 1. 构建筛选请求体 (只包含激活和有值的部分)
+            const filterRequest = {
+                fiscal_year: selectedYear,
+                fiscal_month: selectedMonth,
+            };
 
-      if (filterMode === 'criteria') {
-        // Construct filter request for criteria mode - only include active filters
-        const filterRequest = {
-          fiscal_year: selectedYear,
-          fiscal_month: selectedMonth,
-        };
+            if (activeFilters.geographic && (geoFilters.st || geoFilters.city)) {
+                filterRequest.geo_filters = geoFilters;
+            }
+            if (activeFilters.financial && (financialFilters.min_revenue !== null || financialFilters.max_revenue !== null)) {
+                filterRequest.financial_filters = financialFilters;
+            }
+            if (activeFilters.operational && (operationalFilters.min_ilu !== null || operationalFilters.max_ilu !== null)) {
+                filterRequest.operational_filters = operationalFilters;
+            }
 
-        // Only add filter sections that are active and have non-null values
-        if (activeFilters.geographic) {
-          const geoFiltersToSend = {};
-          if (geoFilters.st) {
-            geoFiltersToSend.st = geoFilters.st;
-          }
-          if (geoFilters.city) {
-            geoFiltersToSend.city = geoFilters.city;
-          }
-          if (Object.keys(geoFiltersToSend).length > 0) {
-            filterRequest.geo_filters = geoFiltersToSend;
-          }
+            console.log('Sending Filter Request:', JSON.stringify(filterRequest, null, 2));
+
+            // 2. **关键：调用正确的 API 地址**
+            response = await fetch('/api/filter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filterRequest),
+            });
+
+        } else { // 'search' mode
+            const searchTerms = searchText.split('\n').filter(term => term.trim());
+            if (searchTerms.length === 0) {
+                message.warning('Please enter terms to search.');
+                setLoading(false);
+                return;
+            }
+            const searchRequest = {
+                fiscal_year: selectedYear,
+                search_terms: searchTerms,
+                search_type: specificSearchType,
+            };
+            
+            console.log('Sending Batch Search Request:', JSON.stringify(searchRequest, null, 2));
+
+            response = await fetch('/api/search/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(searchRequest),
+            });
         }
-        
-        if (activeFilters.financial) {
-          const financialFiltersToSend = {};
-          if (financialFilters.min_revenue !== null && financialFilters.min_revenue !== undefined) {
-            financialFiltersToSend.min_revenue = financialFilters.min_revenue;
-          }
-          if (financialFilters.max_revenue !== null && financialFilters.max_revenue !== undefined) {
-            financialFiltersToSend.max_revenue = financialFilters.max_revenue;
-          }
-          if (Object.keys(financialFiltersToSend).length > 0) {
-            filterRequest.financial_filters = financialFiltersToSend;
-          }
-        }
-        
-        if (activeFilters.operational) {
-          const operationalFiltersToSend = {};
-          if (operationalFilters.min_ilu !== null && operationalFilters.min_ilu !== undefined) {
-            operationalFiltersToSend.min_ilu = operationalFilters.min_ilu;
-          }
-          if (operationalFilters.max_ilu !== null && operationalFilters.max_ilu !== undefined) {
-            operationalFiltersToSend.max_ilu = operationalFilters.max_ilu;
-          }
-          if (Object.keys(operationalFiltersToSend).length > 0) {
-            filterRequest.operational_filters = operationalFiltersToSend;
-          }
-        }
-
-        console.log('=== FILTER REQUEST DEBUG ===');
-        console.log('Active filters:', activeFilters);
-        console.log('Geo filters state:', geoFilters);
-        console.log('Financial filters state:', financialFilters);
-        console.log('Operational filters state:', operationalFilters);
-        console.log('Final filter request:', filterRequest);
-        console.log('===============================');
-
-        const response = await fetch('/api/filter/enhanced', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(filterRequest),
-        });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to filter organizations: ${response.status} - ${errorText}`);
+            const errorText = await response.text();
+            throw new Error(`API request failed: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        results = data.results || [];
         
-        console.log('Filter API response:', data);
-      } else {
-        // Search mode - split search text into company list with search type
-        const searchTerms = searchText.split('\n').filter(term => term.trim());
-        if (searchTerms.length === 0) {
-          message.warning('Please enter organization names or EINs to search');
-          return;
+        // 3. **关键：数据质检**
+        if (data.results && Array.isArray(data.results)) {
+            finalResults = data.results.filter(item => item && item.ein);
+            if (finalResults.length !== data.results.length) {
+                console.warn("Some records were removed due to a missing 'ein' key.");
+            }
         }
 
-        const searchRequest = {
-          fiscal_year: selectedYear,
-          fiscal_month: selectedMonth,
-          search_terms: searchTerms,
-          search_type: specificSearchType  // Add search type to distinguish name vs EIN
-        };
-
-        console.log('=== SEARCH REQUEST DEBUG ===');
-        console.log('Search type:', specificSearchType);
-        console.log('Search terms:', searchTerms);
-        console.log('Search request:', searchRequest);
-        console.log('============================');
-
-        const response = await fetch('/api/search/batch', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(searchRequest),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to search organizations: ${response.status} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        results = data.results || [];
-        
-        console.log('Search API response:', data);
-      }
-
-      console.log(`=== RESULTS SUMMARY ===`);
-      console.log(`Found ${results.length} organizations`);
-      console.log('Sample results:', results.slice(0, 3));
-      console.log('======================');
-
-      setStep2Results(results);
-      setStep3SelectedKeys([]); // Reset selection
-      setCurrentStep(2); // Move to Step 3
-
-      message.success(`Found ${results.length} organizations matching your criteria`);
     } catch (error) {
-      message.error('Failed to find organizations: ' + error.message);
-      console.error('=== ERROR DETAILS ===');
-      console.error('Error:', error);
-      console.error('===================');
+        console.error('An error occurred in handleStep2Next:', error);
+        message.error(error.message);
+    } finally {
+        setStep2Results(finalResults);
+        setCurrentStep(2);
+        setLoading(false);
     }
-  };
+};
 
   // Convert month number to English name
   const monthToName = (monthNumber) => {
@@ -646,6 +592,7 @@ const QueryForm = () => {
               style={{ marginBottom: 20 }}
             />
             <Table
+              rowKey="ein"
               rowSelection={{
                 type: 'checkbox',
                 selectedRowKeys: step3SelectedKeys,
@@ -674,7 +621,6 @@ const QueryForm = () => {
               }}
               columns={step3Columns}
               dataSource={step2Results}
-              rowKey="ein" // Use EIN as unique identifier
               pagination={{ pageSize: 10 }}
               scroll={{ x: 800 }}
             />
