@@ -225,20 +225,53 @@ const QueryForm = () => {
           fiscal_month: selectedMonth,
         };
 
-        // Only add filter sections that are active
+        // Only add filter sections that are active and have non-null values
         if (activeFilters.geographic) {
-          filterRequest.geo_filters = geoFilters;
+          const geoFiltersToSend = {};
+          if (geoFilters.st) {
+            geoFiltersToSend.st = geoFilters.st;
+          }
+          if (geoFilters.city) {
+            geoFiltersToSend.city = geoFilters.city;
+          }
+          if (Object.keys(geoFiltersToSend).length > 0) {
+            filterRequest.geo_filters = geoFiltersToSend;
+          }
         }
         
         if (activeFilters.financial) {
-          filterRequest.financial_filters = financialFilters;
+          const financialFiltersToSend = {};
+          if (financialFilters.min_revenue !== null && financialFilters.min_revenue !== undefined) {
+            financialFiltersToSend.min_revenue = financialFilters.min_revenue;
+          }
+          if (financialFilters.max_revenue !== null && financialFilters.max_revenue !== undefined) {
+            financialFiltersToSend.max_revenue = financialFilters.max_revenue;
+          }
+          if (Object.keys(financialFiltersToSend).length > 0) {
+            filterRequest.financial_filters = financialFiltersToSend;
+          }
         }
         
         if (activeFilters.operational) {
-          filterRequest.operational_filters = operationalFilters;
+          const operationalFiltersToSend = {};
+          if (operationalFilters.min_ilu !== null && operationalFilters.min_ilu !== undefined) {
+            operationalFiltersToSend.min_ilu = operationalFilters.min_ilu;
+          }
+          if (operationalFilters.max_ilu !== null && operationalFilters.max_ilu !== undefined) {
+            operationalFiltersToSend.max_ilu = operationalFilters.max_ilu;
+          }
+          if (Object.keys(operationalFiltersToSend).length > 0) {
+            filterRequest.operational_filters = operationalFiltersToSend;
+          }
         }
 
-        console.log('Sending filter request:', filterRequest);
+        console.log('=== FILTER REQUEST DEBUG ===');
+        console.log('Active filters:', activeFilters);
+        console.log('Geo filters state:', geoFilters);
+        console.log('Financial filters state:', financialFilters);
+        console.log('Operational filters state:', operationalFilters);
+        console.log('Final filter request:', filterRequest);
+        console.log('===============================');
 
         const response = await fetch('/api/filter/enhanced', {
           method: 'POST',
@@ -249,11 +282,14 @@ const QueryForm = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to filter organizations');
+          const errorText = await response.text();
+          throw new Error(`Failed to filter organizations: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
         results = data.results || [];
+        
+        console.log('Filter API response:', data);
       } else {
         // Search mode - split search text into company list with search type
         const searchTerms = searchText.split('\n').filter(term => term.trim());
@@ -269,7 +305,11 @@ const QueryForm = () => {
           search_type: specificSearchType  // Add search type to distinguish name vs EIN
         };
 
-        console.log('Sending search request:', searchRequest);
+        console.log('=== SEARCH REQUEST DEBUG ===');
+        console.log('Search type:', specificSearchType);
+        console.log('Search terms:', searchTerms);
+        console.log('Search request:', searchRequest);
+        console.log('============================');
 
         const response = await fetch('/api/search/batch', {
           method: 'POST',
@@ -280,12 +320,20 @@ const QueryForm = () => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to search organizations');
+          const errorText = await response.text();
+          throw new Error(`Failed to search organizations: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
         results = data.results || [];
+        
+        console.log('Search API response:', data);
       }
+
+      console.log(`=== RESULTS SUMMARY ===`);
+      console.log(`Found ${results.length} organizations`);
+      console.log('Sample results:', results.slice(0, 3));
+      console.log('======================');
 
       setStep2Results(results);
       setStep3SelectedKeys([]); // Reset selection
@@ -294,7 +342,9 @@ const QueryForm = () => {
       message.success(`Found ${results.length} organizations matching your criteria`);
     } catch (error) {
       message.error('Failed to find organizations: ' + error.message);
-      console.error(error);
+      console.error('=== ERROR DETAILS ===');
+      console.error('Error:', error);
+      console.error('===================');
     }
   };
 
@@ -598,10 +648,29 @@ const QueryForm = () => {
             <Table
               rowSelection={{
                 type: 'checkbox',
+                selectedRowKeys: step3SelectedKeys,
                 onChange: (selectedRowKeys, selectedRows) => {
+                  console.log('=== TABLE SELECTION DEBUG ===');
+                  console.log('Selected row keys:', selectedRowKeys);
+                  console.log('Selected rows count:', selectedRows.length);
+                  console.log('Previous selection:', step3SelectedKeys);
+                  console.log('=============================');
                   setStep3SelectedKeys(selectedRowKeys);
                 },
-                selectedRowKeys: step3SelectedKeys,
+                onSelect: (record, selected, selectedRows) => {
+                  console.log('Individual row select:', {
+                    record: record.ein,
+                    selected,
+                    totalSelected: selectedRows.length
+                  });
+                },
+                onSelectAll: (selected, selectedRows, changeRows) => {
+                  console.log('Select all triggered:', {
+                    selected,
+                    selectedCount: selectedRows.length,
+                    changedCount: changeRows.length
+                  });
+                },
               }}
               columns={step3Columns}
               dataSource={step2Results}
@@ -609,6 +678,14 @@ const QueryForm = () => {
               pagination={{ pageSize: 10 }}
               scroll={{ x: 800 }}
             />
+            {step3SelectedKeys.length > 0 && (
+              <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
+                <strong>Selected Organizations ({step3SelectedKeys.length}):</strong>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                  EINs: {step3SelectedKeys.join(', ')}
+                </div>
+              </div>
+            )}
             <div className="step-actions">
               <Button onClick={handlePreviousStep}>Previous Step</Button>
               <Button

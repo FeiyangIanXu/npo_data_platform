@@ -331,12 +331,13 @@ async def batch_search_api(
 ):
     """
     Batch search for multiple organization names or EINs
-    Supports the enhanced frontend search functionality
+    Supports the enhanced frontend search functionality with search_type differentiation
     """
     try:
         fiscal_year = request.get('fiscal_year')
         fiscal_month = request.get('fiscal_month')
         search_terms = request.get('search_terms', [])
+        search_type = request.get('search_type', 'name')  # 'name' or 'ein'
         
         if not fiscal_year:
             raise HTTPException(status_code=400, detail="Fiscal year is required")
@@ -349,6 +350,13 @@ async def batch_search_api(
         
         # Build search conditions for multiple terms
         all_results = []
+        
+        print(f"=== BATCH SEARCH DEBUG ===")
+        print(f"Search type: {search_type}")
+        print(f"Search terms: {search_terms}")
+        print(f"Fiscal year: {fiscal_year}")
+        print(f"Fiscal month: {fiscal_month}")
+        print(f"=========================")
         
         for term in search_terms:
             term = term.strip()
@@ -368,31 +376,54 @@ async def batch_search_api(
                 conditions.append("fiscal_month = ?")
                 params.append(fiscal_month)
             
-            # Search in campus (organization name) and EIN
-            search_condition = "(campus LIKE ? OR ein LIKE ?)"
-            conditions.append(search_condition)
-            params.extend([f"%{term}%", f"%{term}%"])
+            # Search based on search_type
+            if search_type == 'ein':
+                # Search only in EIN field - exact match or starts with
+                search_condition = "ein LIKE ?"
+                conditions.append(search_condition)
+                params.append(f"{term}%")
+                
+                order_clause = "ein"
+            else:
+                # Search only in campus (organization name) field
+                search_condition = "campus LIKE ?"
+                conditions.append(search_condition)
+                params.append(f"%{term}%")
+                
+                order_clause = f"""
+                CASE 
+                    WHEN campus LIKE ? THEN 1
+                    WHEN campus LIKE ? THEN 2
+                    ELSE 3
+                END,
+                campus"""
             
             where_clause = " AND ".join(conditions)
             
-            sql = f"""
-            SELECT * FROM nonprofits 
-            WHERE {where_clause}
-            ORDER BY 
-                CASE 
-                    WHEN campus LIKE ? THEN 1
-                    WHEN ein LIKE ? THEN 2
-                    ELSE 3
-                END,
-                campus
-            LIMIT 50
-            """
+            if search_type == 'ein':
+                sql = f"""
+                SELECT * FROM nonprofits 
+                WHERE {where_clause}
+                ORDER BY {order_clause}
+                LIMIT 50
+                """
+            else:
+                sql = f"""
+                SELECT * FROM nonprofits 
+                WHERE {where_clause}
+                ORDER BY {order_clause}
+                LIMIT 50
+                """
+                # Add sorting parameters for name search
+                params.extend([f"{term}%", f"%{term}%"])
             
-            # Add sorting parameters
-            params.extend([f"{term}%", f"{term}%"])
+            print(f"Executing SQL for term '{term}': {sql}")
+            print(f"Parameters: {params}")
             
             cursor.execute(sql, params)
             results = cursor.fetchall()
+            
+            print(f"Found {len(results)} results for term '{term}'")
             
             # Get column names
             columns = [description[0] for description in cursor.description]
@@ -406,11 +437,15 @@ async def batch_search_api(
         
         conn.close()
         
+        print(f"Total unique results: {len(all_results)}")
+        
         return {
             "success": True,
             "count": len(all_results),
-            "results": all_results
+            "results": all_results,
+            "search_type": search_type
         }
         
     except Exception as e:
+        print(f"Error in batch search: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
