@@ -378,12 +378,10 @@ async def batch_search_api(
             
             # Search based on search_type
             if search_type == 'ein':
-                # For EIN, compare without hyphens
-                search_condition = "REPLACE(ein, '-', '') = ?"
+                # Search only in EIN field - exact match or starts with
+                search_condition = "ein LIKE ?"
                 conditions.append(search_condition)
-                # Also remove hyphens from the search term before adding to params
-                sanitized_ein = term.replace('-', '')
-                params.append(sanitized_ein)
+                params.append(f"{term}%")
                 
                 order_clause = "ein"
             else:

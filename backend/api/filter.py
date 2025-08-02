@@ -29,9 +29,7 @@ def build_sql_condition(condition: FilterCondition) -> tuple:
     operator = condition.operator
     value = condition.value
     
-    if operator == "equals" and isinstance(value, str):
-        return f"UPPER({field}) = UPPER(?)", [value]
-    elif operator == "equals":
+    if operator == "equals":
         return f"{field} = ?", [value]
     elif operator == "not_equals":
         return f"{field} != ?", [value]
@@ -69,88 +67,115 @@ def build_sql_condition(condition: FilterCondition) -> tuple:
     else:
         raise ValueError(f"Unsupported operator: {operator}")
 
-#
-# 这是你要粘贴到 filter.py 的最终代码
-#
-
 @router.post("/filter")
-async def advanced_filter(request: dict = Body(...)):
+async def advanced_filter(request: FilterRequest):
+    """
+    Advanced filtering API
+    
+    Supported operators:
+    - equals: equal to
+    - not_equals: not equal to
+    - contains: contains
+    - in: in list
+    - not_in: not in list
+    - greater_than: greater than
+    - less_than: less than
+    - greater_equal: greater than or equal
+    - less_equal: less than or equal
+    - between: within range
+    - is_null: is null
+    - is_not_null: is not null
+    """
     try:
-        fiscal_year = request.get('fiscal_year')
-        fiscal_month = request.get('fiscal_month')
-        geo_filters = request.get('geo_filters')
-        financial_filters = request.get('financial_filters')
-        operational_filters = request.get('operational_filters')
-
-        sql_conditions = []
-        params = []
-
-        # 1. 处理年份 (必须有)
-        if fiscal_year:
-            sql_conditions.append("fiscal_year = ?")
-            params.append(fiscal_year)
-        else:
-            raise HTTPException(status_code=400, detail="Fiscal year is required.")
-
-        # 2. 处理月份 (可选)
-        if fiscal_month:
-            sql_conditions.append("fiscal_month = ?")
-            params.append(fiscal_month)
-            
-        # 3. 处理地理筛选 (可选)
-        if geo_filters:
-            if geo_filters.get('st'):
-                sql_conditions.append("UPPER(st) = UPPER(?)")
-                params.append(geo_filters['st'])
-            if geo_filters.get('city'):
-                sql_conditions.append("UPPER(city) = UPPER(?)")
-                params.append(geo_filters['city'])
-
-        # 4. 处理财务筛选 (可选)
-        if financial_filters:
-            if financial_filters.get('min_revenue') is not None:
-                sql_conditions.append("part_i_summary_12_total_revenue_cy >= ?")
-                params.append(float(financial_filters['min_revenue']))
-            if financial_filters.get('max_revenue') is not None:
-                sql_conditions.append("part_i_summary_12_total_revenue_cy <= ?")
-                params.append(float(financial_filters['max_revenue']))
+        if not request.conditions:
+            raise HTTPException(status_code=400, detail="At least one filter condition is required")
         
-        # 5. 处理运营筛选 (可选) - 假设用 'employees' 字段
-        if operational_filters:
-            if operational_filters.get('min_ilu') is not None:
-                sql_conditions.append("employees >= ?")
-                params.append(int(operational_filters['min_ilu']))
-            if operational_filters.get('max_ilu') is not None:
-                sql_conditions.append("employees <= ?")
-                params.append(int(operational_filters['max_ilu']))
-
-
-        where_clause = " AND ".join(sql_conditions)
-        sql = f"SELECT * FROM nonprofits WHERE {where_clause} ORDER BY campus LIMIT 1000"
-
-        # --- 调试代码 ---
-        print("\n" + "="*50)
-        print("EXECUTING FINAL SQL QUERY (from /api/filter):")
-        print("SQL:", sql)
-        print("PARAMETERS:", params)
-        print("="*50 + "\n")
+        if request.logic not in ["AND", "OR"]:
+            raise HTTPException(status_code=400, detail="Logic operator must be AND or OR")
+        
+        # Validate field names (updated to standardized columns)
+        valid_fields = [
+            'campus', 'address', 'city', 'st', 'zip', 
+            'part_i_summary_12_total_revenue_cy', 'employees', 'ein',
+            'fiscal_year',   # standardized fiscal year
+            'fiscal_month'   # standardized fiscal end month
+        ]
+        
+        for condition in request.conditions:
+            if condition.field not in valid_fields:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Invalid field name: {condition.field}"
+                )
+        
+        # Build SQL query
+        conditions = []
+        params = []
+        
+        for condition in request.conditions:
+            try:
+                sql_condition, condition_params = build_sql_condition(condition)
+                conditions.append(sql_condition)
+                params.extend(condition_params)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # Build WHERE clause
+        where_clause = f" {request.logic} ".join(conditions)
+        
+        # Build ORDER BY clause
+        order_clause = ""
+        if request.order_by:
+            if request.order_by in valid_fields:
+                order_direction = "DESC" if request.order_direction.upper() == "DESC" else "ASC"
+                order_clause = f" ORDER BY {request.order_by} {order_direction}"
+            else:
+                raise HTTPException(status_code=400, detail=f"Invalid order field: {request.order_by}")
+        
+        # Execute query
+        sql = f"""
+        SELECT * FROM nonprofits 
+        WHERE {where_clause}
+        {order_clause}
+        LIMIT ? OFFSET ?
+        """
+        
+        params.extend([request.limit, request.offset])
         
         conn = sqlite3.connect('irs.db')
-        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute(sql, params)
-        results = [dict(row) for row in cursor.fetchall()]
+        results = cursor.fetchall()
+        
+        # Get total count
+        count_sql = f"SELECT COUNT(*) FROM nonprofits WHERE {where_clause}"
+        cursor.execute(count_sql, params[:-2])  # Remove LIMIT and OFFSET params
+        total_count = cursor.fetchone()[0]
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Convert to dictionary list
+        nonprofits = []
+        for row in results:
+            nonprofit = dict(zip(columns, row))
+            nonprofits.append(nonprofit)
         
         conn.close()
         
-        return {"success": True, "count": len(results), "results": results}
-
+        return {
+            "success": True,
+            "total_count": total_count,
+            "filtered_count": len(nonprofits),
+            "limit": request.limit,
+            "offset": request.offset,
+            "has_more": (request.offset + request.limit) < total_count,
+            "results": nonprofits
+        }
+        
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/filter/fields")
 async def get_filter_fields():
@@ -284,3 +309,101 @@ async def get_filter_examples():
         ]
     } 
 
+@router.post("/filter/enhanced")
+async def enhanced_filter_for_frontend(
+    request: dict = Body(...)
+):
+    """
+    Enhanced filter endpoint specifically designed for the frontend QueryForm
+    Supports geographic, financial, and operational filtering with fiscal year/month
+    """
+    try:
+        # Extract values from request body
+        fiscal_year = request.get('fiscal_year')
+        fiscal_month = request.get('fiscal_month')
+        geo_filters = request.get('geo_filters')
+        financial_filters = request.get('financial_filters')
+        operational_filters = request.get('operational_filters')
+        
+        if not fiscal_year:
+            raise HTTPException(status_code=400, detail="Fiscal year is required")
+        
+        conn = sqlite3.connect('irs.db')
+        cursor = conn.cursor()
+        
+        conditions = []
+        params = []
+        
+        # Always filter by fiscal year
+        conditions.append("fiscal_year = ?")
+        params.append(fiscal_year)
+        
+        # Filter by fiscal month if provided
+        if fiscal_month:
+            conditions.append("fiscal_month = ?")
+            params.append(fiscal_month)
+        
+        # Geographic filters
+        if geo_filters:
+            st_value = geo_filters.get('st')
+            if st_value:
+                conditions.append("st = ?")
+                params.append(st_value.upper())
+            
+            city_value = geo_filters.get('city')
+            if city_value:
+                conditions.append("city = ?")
+                params.append(city_value.upper())
+        
+        # Financial filters
+        if financial_filters:
+            if financial_filters.get('min_revenue') is not None:
+                conditions.append("part_i_summary_12_total_revenue_cy >= ?")
+                params.append(financial_filters['min_revenue'])
+            
+            if financial_filters.get('max_revenue') is not None:
+                conditions.append("part_i_summary_12_total_revenue_cy <= ?")
+                params.append(financial_filters['max_revenue'])
+        
+        # Operational filters (assuming there's an ILU field or similar)
+        if operational_filters:
+            if operational_filters.get('min_ilu') is not None:
+                # Note: You may need to adjust the field name based on your actual database schema
+                conditions.append("employees >= ?")  # Using employees as a proxy for operational scale
+                params.append(operational_filters['min_ilu'])
+            
+            if operational_filters.get('max_ilu') is not None:
+                conditions.append("employees <= ?")
+                params.append(operational_filters['max_ilu'])
+        
+        where_clause = " AND ".join(conditions)
+        
+        sql = f"""
+        SELECT * FROM nonprofits 
+        WHERE {where_clause}
+        ORDER BY part_i_summary_12_total_revenue_cy DESC, campus
+        LIMIT 1000
+        """
+        
+        cursor.execute(sql, params)
+        results = cursor.fetchall()
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        
+        # Convert to dictionary list
+        nonprofits = []
+        for row in results:
+            nonprofit = dict(zip(columns, row))
+            nonprofits.append(nonprofit)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "count": len(nonprofits),
+            "results": nonprofits
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
