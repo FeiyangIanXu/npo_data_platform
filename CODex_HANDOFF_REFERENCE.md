@@ -2,23 +2,19 @@
 
 > Purpose: This file is a persistent handoff for future Codex sessions (especially local IDE Codex), summarizing decisions, current status, and the next execution plan.
 
-## 1) Collaboration mode decision (important)
+## 1) Collaboration model (execution policy)
 
-We agreed to use **Mode A: GitHub as the single source of truth**.
+We use a **local-first development workflow with GitHub as the canonical integration history**.
 
-- Work should be developed on feature branches.
-- Changes are pushed to GitHub and merged via PR.
-- Local machine sync uses `git fetch` / `git pull`.
-- Final version truth lives on GitHub, not in temporary container state.
+- Day-to-day coding and validation happen locally for speed.
+- All production-intent changes must be pushed to GitHub on feature branches.
+- Merges into long-lived branches are done through PR review.
+- Team-visible release history and rollback points are defined by GitHub state.
 
-## 2) Git concepts clarified in prior discussion
+## 2) Git workflow quick reference (minimal)
 
-- `origin` is the alias for remote repository URL.
-- `fetch` downloads remote refs/metadata and does **not** change working files.
-- `pull` = `fetch + merge/rebase` and can change local branch files.
-- Branch and PR are separate concepts from fetch/pull:
-  - Branch = development line.
-  - PR = review + merge workflow.
+- `fetch`: update remote metadata locally; no working-tree changes.
+- `pull`: bring remote branch updates into current branch (`fetch` + merge/rebase).
 
 ## 3) Baseline freeze milestone completed
 
