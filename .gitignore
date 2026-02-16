@@ -126,3 +126,9 @@ frontend/irs.db
 backend/data/First100.xlsx
 backend/data/nonprofits_100.csv
 backend/irs.db
+
+# local private outputs
+data_harvester/output/
+backend/npo_api_data.db
+form-990-xml-parser/
+
