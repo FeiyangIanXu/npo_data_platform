@@ -1,71 +1,82 @@
-import requests
-import json
+﻿import json
 import logging
+
 import pandas as pd
+import requests
 
 # --- Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 BASE_URL = "https://990-infrastructure.gtdata.org/"
-TEST_EIN = "000065837" # Giving Tuesday's EIN, as used in their sample request
+TEST_EIN = "842929872"  # Legacy sample EIN in this script
+
+
+def build_session() -> requests.Session:
+    session = requests.Session()
+    # Ignore broken environment proxy variables by default.
+    session.trust_env = False
+    return session
+
+
+def extract_results(payload: dict) -> list:
+    if not isinstance(payload, dict):
+        return []
+    body = payload.get("body", {})
+    if not isinstance(body, dict):
+        return []
+    results = body.get("results", [])
+    return results if isinstance(results, list) else []
+
 
 def fetch_filing_data(ein: str) -> list:
     """
-    Fetches all available yearly data for a single organization based on the official API documentation.
+    Fetch all available yearly data for one organization.
     """
-    logging.info(f"Requesting data for EIN: {ein} from the official endpoint...")
+    logging.info("Requesting data for EIN: %s from the official endpoint...", ein)
     endpoint = "irs-data/990basic120fields"
-    
-    # We follow the documentation precisely: only the 'ein' parameter is sent.
-    params = {'ein': ein}
-    
-    try:
-        # Prepare the full request URL for logging, so we know exactly what we are asking for
-        request_url = requests.Request('GET', BASE_URL + endpoint, params=params).prepare().url
-        logging.info(f"Executing Request URL: {request_url}")
+    params = {"ein": ein}
 
-        response = requests.get(BASE_URL + endpoint, params=params, timeout=30)
-        response.raise_for_status()  # This will raise an error for statuses like 404 or 500
-        
-        data = response.json()
-        
-        if isinstance(data, list) and len(data) > 0:
-            logging.info(f"Success! Received {len(data)} records for EIN {ein}.")
-            return data # Return the entire list of yearly filings
-        else:
-            logging.warning(f"API returned an empty list or invalid data for EIN: {ein}.")
-            return None
-            
-    except requests.exceptions.RequestException as e:
-        logging.error(f"A network error occurred while requesting data for EIN {ein}: {e}")
-        return None
+    try:
+        request_url = requests.Request("GET", BASE_URL + endpoint, params=params).prepare().url
+        logging.info("Executing Request URL: %s", request_url)
+
+        response = build_session().get(BASE_URL + endpoint, params=params, timeout=30)
+        response.raise_for_status()
+
+        results = extract_results(response.json())
+        if results:
+            logging.info("Success! Received %s records for EIN %s.", len(results), ein)
+            return results
+
+        logging.warning("API returned empty results for EIN: %s.", ein)
+        return []
+
+    except requests.exceptions.RequestException as exc:
+        logging.error("Network error while requesting data for EIN %s: %s", ein, exc)
+        return []
     except json.JSONDecodeError:
         logging.error("Failed to decode the JSON response from the server.")
-        return None
+        return []
+
 
 if __name__ == "__main__":
     print("====== Data Harvester FINAL: Based on Official Documentation ======")
-    
-    # 1. Fetch the data according to the manual
+
     all_years_data = fetch_filing_data(TEST_EIN)
-    
+
     if all_years_data:
-        # 2. Display the results clearly
         print(f"\n====== Successfully retrieved {len(all_years_data)} year(s) of data for EIN {TEST_EIN} ======")
-        
-        # We can use pandas to display this list of dictionaries beautifully
+
         df = pd.DataFrame(all_years_data)
-        
-        # Select and reorder a few key columns for a clean display
-        display_columns = [
-            'tax_year', 'organization_name', 'total_revenue', 
-            'total_expenses', 'net_assets'
-        ]
-        
-        # Filter the DataFrame to only show columns that actually exist in the response
+        display_columns = ["TAXYEAR", "FILERNAME1", "TOTREVCURYEA", "TOTEXPCURYEA", "NAFBEOY"]
         existing_columns = [col for col in display_columns if col in df.columns]
-        
-        print(df[existing_columns].to_string(index=False))
-        
+
+        if existing_columns:
+            print(df[existing_columns].to_string(index=False))
+        else:
+            print("Results returned, but expected display columns were not present.")
+
         print("\n======================================================================\n")
-        print("🏆🏆🏆 VICTORY! By strictly following the official documentation, we have successfully retrieved the data.")
+        print("SUCCESS: Retrieved and displayed data from the official endpoint.")
+    else:
+        print("No records were returned for this EIN.")
