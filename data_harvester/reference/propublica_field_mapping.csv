@@ -1,0 +1,12 @@
+target_field,propublica_field_path,transform_rule,priority,notes
+ein,ein,direct,1,Primary EIN key
+organization_name,name,fallback_from_filing_name,1,Prefer top-level org name
+tax_year,filings_with_data[].tax_year,to_int_year,1,Used for freshness comparison
+filing_date,filings_with_data[].filing_date,direct,1,Filing receipt or publication date when available
+tax_prd,filings_with_data[].tax_prd,direct,1,Tax period string
+form_type,filings_with_data[].formtype,direct,1,Form variant such as 990 or 990PF
+total_revenue,filings_with_data[].total_revenue,to_number,1,Canonical POC financial field
+total_expenses,filings_with_data[].total_expenses,to_number,1,Canonical POC financial field
+total_assets,filings_with_data[].total_assets,to_number,1,Canonical POC financial field
+net_assets,filings_with_data[].net_assets,to_number,1,Canonical POC financial field
+employee_count,filings_with_data[].employee_count,to_number,1,Canonical POC workforce field
