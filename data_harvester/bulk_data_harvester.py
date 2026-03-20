@@ -15,7 +15,7 @@ API_ENDPOINT = "irs-data/990basic120fields"
 SCRIPT_DIR = Path(__file__).resolve().parent
 CSV_FILE_PATH = SCRIPT_DIR.parent / "backend" / "data" / "nonprofits_100.csv"
 DICTIONARY_FILE_PATH = SCRIPT_DIR / "reference" / "GTDC 990 API - Data Dictionary.xlsx"
-OUTPUT_DIR = SCRIPT_DIR / "output"
+OUTPUT_DIR = SCRIPT_DIR / "output" / "gt"
 SHEET_NAME = "990 Basic 120 Fields "
 DEFAULT_WORKERS = 8
 
