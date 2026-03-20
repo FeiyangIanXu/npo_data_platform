@@ -5,7 +5,7 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = SCRIPT_DIR / "output"
+OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
 
 
 def latest_matching_file(pattern: str) -> Path:

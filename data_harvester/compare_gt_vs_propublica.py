@@ -6,12 +6,14 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = SCRIPT_DIR / "output"
-GT_COMPARISON_PATH = OUTPUT_DIR / "api_target_comparison.csv"
+GT_OUTPUT_DIR = SCRIPT_DIR / "output" / "gt"
+PROPUBLICA_OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
+REPORT_DIR = PROPUBLICA_OUTPUT_DIR / "reports"
+GT_COMPARISON_PATH = GT_OUTPUT_DIR / "api_target_comparison.csv"
 
 
 def latest_matching_file(pattern: str) -> Path:
-    matches = sorted(OUTPUT_DIR.glob(pattern))
+    matches = sorted(PROPUBLICA_OUTPUT_DIR.glob(pattern))
     if not matches:
         raise FileNotFoundError(f"No files found for pattern: {pattern}")
     return matches[-1]
@@ -98,12 +100,13 @@ def main() -> None:
     comparison_df = build_comparison(gt_df, pro_df)
 
     date_tag = datetime.now().strftime("%Y%m%d")
-    output_path = OUTPUT_DIR / f"gt_vs_propublica_freshness_{date_tag}.csv"
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    output_path = REPORT_DIR / f"gt_vs_propublica_freshness_{date_tag}.csv"
     try:
         comparison_df.to_csv(output_path, index=False, encoding="utf-8-sig")
     except PermissionError:
         time_tag = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = OUTPUT_DIR / f"gt_vs_propublica_freshness_{time_tag}.csv"
+        output_path = REPORT_DIR / f"gt_vs_propublica_freshness_{time_tag}.csv"
         comparison_df.to_csv(output_path, index=False, encoding="utf-8-sig")
 
     newer_count = int(comparison_df["propublica_newer"].sum())

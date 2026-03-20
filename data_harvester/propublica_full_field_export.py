@@ -14,7 +14,7 @@ from propublica_poc_harvester import CSV_FILE_PATH, get_targets_from_csv
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = SCRIPT_DIR / "output"
+OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
 DEFAULT_WORKERS = 6
 
 

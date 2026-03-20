@@ -6,7 +6,8 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = SCRIPT_DIR / "output"
+OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
+REPORT_DIR = OUTPUT_DIR / "reports"
 TARGET_CSV = SCRIPT_DIR.parent / "backend" / "data" / "nonprofits_100.csv"
 
 
@@ -131,7 +132,8 @@ def save_snapshot(snapshot_df: pd.DataFrame) -> tuple[Path, Path]:
 
 def save_report(snapshot_df: pd.DataFrame) -> Path:
     date_tag = datetime.now().strftime("%Y%m%d")
-    report_path = OUTPUT_DIR / f"ProPublica_Latest_Snapshot_Report_{date_tag}.md"
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    report_path = REPORT_DIR / f"ProPublica_Latest_Snapshot_Report_{date_tag}.md"
     status_counts = snapshot_df["record_status"].fillna("missing").value_counts().to_dict()
     year_counts = snapshot_df["tax_year"].dropna().astype(int).value_counts().sort_index(ascending=False).to_dict()
     top_2024 = snapshot_df[snapshot_df["tax_year"] >= 2024][["ein", "target_company", "tax_year"]]

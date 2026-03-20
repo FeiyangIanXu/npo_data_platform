@@ -14,7 +14,7 @@ API_ENDPOINT = "irs-data/990basic120fields"
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_CSV = ROOT / "backend" / "data" / "nonprofits_100.csv"
 TARGET_CSV = ROOT / "data_harvester" / "input" / "target_list.csv"
-OUTPUT_DIR = ROOT / "data_harvester" / "output"
+OUTPUT_DIR = ROOT / "data_harvester" / "output" / "gt"
 
 COMMON_WORDS = {
     "inc",

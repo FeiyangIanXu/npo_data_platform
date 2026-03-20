@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CSV_FILE_PATH = SCRIPT_DIR.parent / "backend" / "data" / "nonprofits_100.csv"
-OUTPUT_DIR = SCRIPT_DIR / "output"
+OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
 DEFAULT_WORKERS = 6
 
 

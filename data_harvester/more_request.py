@@ -8,7 +8,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 BASE_URL = "https://990-infrastructure.gtdata.org/irs-data/"
-OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+OUTPUT_DIR = Path(__file__).resolve().parent / "output" / "gt" / "snapshots"
 ENDPOINTS = {
     "bmf": "530196605",
     "efilexml": "842929872",

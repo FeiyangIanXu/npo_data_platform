@@ -10,12 +10,13 @@ import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SCRIPT_DIR.parent
-OUTPUT_DIR = SCRIPT_DIR / "output"
+PROPUBLICA_OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
+REPORT_DIR = PROPUBLICA_OUTPUT_DIR / "reports"
 NONPROFITS_CSV_PATH = ROOT_DIR / "backend" / "data" / "nonprofits_100.csv"
 
 
 def latest_matching_file(pattern: str) -> Path:
-    matches = sorted(OUTPUT_DIR.glob(pattern))
+    matches = sorted(PROPUBLICA_OUTPUT_DIR.glob(pattern))
     if not matches:
         raise FileNotFoundError(f"No files found for pattern: {pattern}")
     return matches[-1]
@@ -321,9 +322,10 @@ def build_review_list(comparison_df: pd.DataFrame) -> pd.DataFrame:
 
 def save_outputs(comparison_df: pd.DataFrame, review_df: pd.DataFrame) -> tuple[Path, Path, Path]:
     date_tag = datetime.now().strftime("%Y%m%d")
-    comparison_path = OUTPUT_DIR / f"propublica_vs_nonprofits_csv_matched_year_{date_tag}.csv"
-    review_path = OUTPUT_DIR / f"propublica_review_list_matched_year_{date_tag}.csv"
-    report_path = OUTPUT_DIR / f"ProPublica_Review_Report_Matched_Year_{date_tag}.md"
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    comparison_path = REPORT_DIR / f"propublica_vs_nonprofits_csv_matched_year_{date_tag}.csv"
+    review_path = REPORT_DIR / f"propublica_review_list_matched_year_{date_tag}.csv"
+    report_path = REPORT_DIR / f"ProPublica_Review_Report_Matched_Year_{date_tag}.md"
 
     comparison_df.to_csv(comparison_path, index=False, encoding="utf-8-sig")
     review_df.to_csv(review_path, index=False, encoding="utf-8-sig")
