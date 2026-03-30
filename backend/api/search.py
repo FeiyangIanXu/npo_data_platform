@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Query, HTTPException, Body
 from typing import List, Optional
-import sqlite3
-import re
 # No longer need complex date parsing functions since data source is clean!
+from db_utils import get_connection, get_table_columns, resolve_table_name
 
 router = APIRouter()
 
-def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int = 50):
+def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int = 50, dataset: str = "default"):
     """
     Search nonprofit organization data
     
@@ -18,39 +17,37 @@ def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int
     if fields is None:
         fields = ['campus', 'address', 'city', 'st', 'zip']
     
-    # Build search conditions
-    search_conditions = []
-    params = []
-    
-    for field in fields:
-        if field in ['campus', 'address', 'city', 'st', 'zip']:
-            search_conditions.append(f"{field} LIKE ?")
-            params.append(f"%{query}%")
-    
-    if not search_conditions:
-        raise HTTPException(status_code=400, detail="Invalid search fields")
-    
-    where_clause = " OR ".join(search_conditions)
-    
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        available_columns = set(get_table_columns(table_name))
+        fields = [field for field in fields if field in available_columns]
+        if not fields:
+            raise HTTPException(status_code=400, detail=f"No searchable fields available for dataset '{dataset}'")
+
+        search_conditions = []
+        params = []
+        for field in fields:
+            if field in ['campus', 'address', 'city', 'st', 'zip', 'ein']:
+                search_conditions.append(f"{field} LIKE ?")
+                params.append(f"%{query}%")
+
+        if not search_conditions:
+            raise HTTPException(status_code=400, detail="Invalid search fields")
+
+        where_clause = " OR ".join(search_conditions)
+        order_by = "campus" if "campus" in available_columns else "ein"
+
+        conn = get_connection()
         cursor = conn.cursor()
         
         sql = f"""
-        SELECT * FROM nonprofits 
+        SELECT * FROM "{table_name}" 
         WHERE {where_clause}
-        ORDER BY 
-            CASE 
-                WHEN campus LIKE ? THEN 1
-                WHEN address LIKE ? THEN 2
-                ELSE 3
-            END,
-            campus
+        ORDER BY {order_by}
         LIMIT ?
         """
         
-        # Add sorting parameters
-        params.extend([f"{query}%", f"{query}%", limit])
+        params.append(limit)
         
         cursor.execute(sql, params)
         results = cursor.fetchall()
@@ -66,7 +63,8 @@ def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int
         
         conn.close()
         return nonprofits
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
@@ -74,7 +72,8 @@ def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int
 async def search_api(
     q: str = Query("", description="Search keyword"),
     fields: Optional[str] = Query("campus,address,city,st", description="Search fields, comma separated"),
-    limit: int = Query(50, ge=1, le=1000, description="Limit of returned results (1-1000)")
+    limit: int = Query(50, ge=1, le=1000, description="Limit of returned results (1-1000)"),
+    dataset: str = Query("default", description="Dataset name: default or propublica"),
 ):
     """
     Search nonprofit organizations
@@ -93,19 +92,23 @@ async def search_api(
     field_list = [f.strip() for f in fields.split(',') if f.strip()]
     
     # Validate fields
-    valid_fields = ['campus', 'address', 'city', 'st', 'zip', 'part_i_summary_12_total_revenue_cy', 'employees']
+    table_name = resolve_table_name(dataset)
+    available_columns = set(get_table_columns(table_name))
+    valid_fields = ['campus', 'address', 'city', 'st', 'zip', 'part_i_summary_12_total_revenue_cy', 'employees', 'ein']
     field_list = [f for f in field_list if f in valid_fields]
+    field_list = [f for f in field_list if f in available_columns]
     
     if not field_list:
-        field_list = ['campus', 'address', 'city', 'st']
+        field_list = [field for field in ['campus', 'address', 'city', 'st', 'ein'] if field in available_columns]
     
     try:
         # If query is empty, fetch preview data
         if not q:
-            conn = sqlite3.connect('irs.db')
+            conn = get_connection()
             cursor = conn.cursor()
             
-            sql = "SELECT * FROM nonprofits ORDER BY campus LIMIT ?"
+            order_by = "campus" if "campus" in available_columns else "ein"
+            sql = f'SELECT * FROM "{table_name}" ORDER BY {order_by} LIMIT ?'
             cursor.execute(sql, [limit])
             results = cursor.fetchall()
             
@@ -116,20 +119,24 @@ async def search_api(
             
             return {
                 "success": True,
+                "dataset": dataset,
                 "query": q,
                 "fields": field_list,
                 "count": len(nonprofits),
                 "results": nonprofits
             }
         else:
-            results = search_nonprofits(q, field_list, limit)
+            results = search_nonprofits(q, field_list, limit, dataset)
             return {
                 "success": True,
+                "dataset": dataset,
                 "query": q,
                 "fields": field_list,
                 "count": len(results),
                 "results": results
             }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -142,13 +149,15 @@ async def advanced_search(
     fiscal_month: Optional[int] = Query(None, description="Fiscal end month (1-12)"),
     min_income: Optional[float] = Query(None, description="Minimum income"),
     max_income: Optional[float] = Query(None, description="Maximum income"),
-    limit: int = Query(50, ge=1, le=1000)
+    limit: int = Query(50, ge=1, le=1000),
+    dataset: str = Query("default", description="Dataset name: default or propublica"),
 ):
     """
     Advanced search - supports multiple condition combinations
     """
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         conditions = []
@@ -185,7 +194,7 @@ async def advanced_search(
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         
         sql = f"""
-        SELECT * FROM nonprofits 
+        SELECT * FROM "{table_name}" 
         WHERE {where_clause}
         ORDER BY part_i_summary_12_total_revenue_cy DESC, campus
         LIMIT ?
@@ -202,50 +211,59 @@ async def advanced_search(
         
         return {
             "success": True,
+            "dataset": dataset,
             "count": len(nonprofits),
             "results": nonprofits
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.get("/available-years")
-async def get_available_years():
+async def get_available_years(dataset: str = Query("default", description="Dataset name: default or propublica")):
     """
     Get all available years (query directly from standardized fiscal_year column)
     Data source is clean, API becomes extremely simple and efficient
     """
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         # SQL query becomes extremely simple - directly use clean columns
         cursor.execute(
-            "SELECT DISTINCT fiscal_year FROM nonprofits WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC"
+            f'SELECT DISTINCT fiscal_year FROM "{table_name}" WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC'
         )
         
         # Directly get sorted year list
         years = [row[0] for row in cursor.fetchall()]
         conn.close()
         
-        return {"years": years}
+        return {"dataset": dataset, "years": years}
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get year data: {str(e)}")
 
 @router.get("/available-months")
-async def get_available_months(year: int = Query(..., description="Fiscal year to query available months")):
+async def get_available_months(
+    year: int = Query(..., description="Fiscal year to query available months"),
+    dataset: str = Query("default", description="Dataset name: default or propublica"),
+):
     """
     For a given fiscal year, get all available fiscal end months.
     Now query directly from clean 'fiscal_month' column, efficient and reliable.
     """
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
 
         # SQL query becomes extremely simple - directly use clean columns
         cursor.execute(
-            "SELECT DISTINCT fiscal_month FROM nonprofits WHERE fiscal_year = ? AND fiscal_month IS NOT NULL ORDER BY fiscal_month",
+            f'SELECT DISTINCT fiscal_month FROM "{table_name}" WHERE fiscal_year = ? AND fiscal_month IS NOT NULL ORDER BY fiscal_month',
             (year,)
         )
         
@@ -253,48 +271,58 @@ async def get_available_months(year: int = Query(..., description="Fiscal year t
         months = [row[0] for row in cursor.fetchall()]
         conn.close()
         
-        return {"months": months}
+        return {"dataset": dataset, "months": months}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get available months: {str(e)}")
 
 @router.get("/available-states")
-async def get_available_states(fiscal_year: Optional[int] = Query(None, description="Fiscal year to filter states")):
+async def get_available_states(
+    fiscal_year: Optional[int] = Query(None, description="Fiscal year to filter states"),
+    dataset: str = Query("default", description="Dataset name: default or propublica"),
+):
     """
     Get all available states, optionally filtered by fiscal year
     """
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         if fiscal_year:
             cursor.execute(
-                "SELECT DISTINCT st FROM nonprofits WHERE fiscal_year = ? AND st IS NOT NULL ORDER BY st",
+                f'SELECT DISTINCT st FROM "{table_name}" WHERE fiscal_year = ? AND st IS NOT NULL ORDER BY st',
                 (fiscal_year,)
             )
         else:
             cursor.execute(
-                "SELECT DISTINCT st FROM nonprofits WHERE st IS NOT NULL ORDER BY st"
+                f'SELECT DISTINCT st FROM "{table_name}" WHERE st IS NOT NULL ORDER BY st'
             )
         
         states = [row[0] for row in cursor.fetchall()]
         conn.close()
         
-        return {"states": states}
+        return {"dataset": dataset, "states": states}
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get available states: {str(e)}")
 
 @router.get("/available-cities")
 async def get_available_cities(
     fiscal_year: Optional[int] = Query(None, description="Fiscal year to filter cities"),
-    state: Optional[str] = Query(None, description="State to filter cities")
+    state: Optional[str] = Query(None, description="State to filter cities"),
+    dataset: str = Query("default", description="Dataset name: default or propublica"),
 ):
     """
     Get all available cities, optionally filtered by fiscal year and/or state
     """
     try:
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         conditions = []
@@ -313,14 +341,16 @@ async def get_available_cities(
         
         where_clause = " AND ".join(conditions) if conditions else "city IS NOT NULL"
         
-        sql = f"SELECT DISTINCT city FROM nonprofits WHERE {where_clause} ORDER BY city"
+        sql = f'SELECT DISTINCT city FROM "{table_name}" WHERE {where_clause} ORDER BY city'
         cursor.execute(sql, params)
         
         cities = [row[0] for row in cursor.fetchall()]
         conn.close()
         
-        return {"cities": cities}
+        return {"dataset": dataset, "cities": cities}
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get available cities: {str(e)}")
 
@@ -338,6 +368,7 @@ async def batch_search_api(
         fiscal_month = request.get('fiscal_month')
         search_terms = request.get('search_terms', [])
         search_type = request.get('search_type', 'name')  # 'name' or 'ein'
+        dataset = request.get('dataset', 'default')
         
         if not fiscal_year:
             raise HTTPException(status_code=400, detail="Fiscal year is required")
@@ -345,7 +376,8 @@ async def batch_search_api(
         if not search_terms:
             raise HTTPException(status_code=400, detail="Search terms are required")
         
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         # Build search conditions for multiple terms
@@ -402,14 +434,14 @@ async def batch_search_api(
             
             if search_type == 'ein':
                 sql = f"""
-                SELECT * FROM nonprofits 
+                SELECT * FROM "{table_name}" 
                 WHERE {where_clause}
                 ORDER BY {order_clause}
                 LIMIT 50
                 """
             else:
                 sql = f"""
-                SELECT * FROM nonprofits 
+                SELECT * FROM "{table_name}" 
                 WHERE {where_clause}
                 ORDER BY {order_clause}
                 LIMIT 50
@@ -441,11 +473,14 @@ async def batch_search_api(
         
         return {
             "success": True,
+            "dataset": dataset,
             "count": len(all_results),
             "results": all_results,
             "search_type": search_type
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in batch search: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 

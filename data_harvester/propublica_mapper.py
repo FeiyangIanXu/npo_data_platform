@@ -20,6 +20,15 @@ CANONICAL_COLUMNS = [
     "raw_available",
 ]
 
+FORM_TYPE_CODE_MAP = {
+    "0": "990",
+    "0.0": "990",
+    "1": "990EO",
+    "1.0": "990EO",
+    "2": "990PF",
+    "2.0": "990PF",
+}
+
 
 def clean_number(value: Any) -> int | float | None:
     if value in (None, ""):
@@ -72,8 +81,14 @@ def infer_organization_name(payload: dict[str, Any], filing: dict[str, Any]) -> 
 def infer_form_type(filing: dict[str, Any]) -> str:
     for key in ("formtype", "form_type", "form"):
         value = filing.get(key)
+        if value in (None, "", 0, 0.0, "0", "0.0"):
+            mapped = FORM_TYPE_CODE_MAP.get(str(value).strip())
+            if mapped:
+                return mapped
+            continue
         if value not in (None, ""):
-            return str(value)
+            text = str(value).strip()
+            return FORM_TYPE_CODE_MAP.get(text, text)
     return ""
 
 

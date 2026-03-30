@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 from api.search import router as search_router
 from api.export import router as export_router
 from api.filter import router as filter_router
+from db_utils import get_available_datasets, get_db_path, resolve_table_name
 
 # Data models
 class UserLogin(BaseModel):
@@ -27,7 +28,7 @@ class UserRegister(BaseModel):
 SECRET_KEY = "your-secret-key-here-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-DATABASE_URL = "sqlite:///./irs.db"
+DATABASE_URL = f"sqlite:///{get_db_path()}"
 
 # Create FastAPI application
 app = FastAPI(
@@ -87,7 +88,13 @@ async def health_check():
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "healthy", "database": "connected", "timestamp": datetime.now().isoformat()}
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "timestamp": datetime.now().isoformat(),
+            "db_path": get_db_path(),
+            "available_datasets": get_available_datasets(),
+        }
     except Exception as e:
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
@@ -133,10 +140,11 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @app.get("/api/fields")
-async def get_available_fields():
+async def get_available_fields(dataset: str = Query("default", description="Dataset name: default or propublica")):
     try:
+        table_name = resolve_table_name(dataset)
         with engine.connect() as conn:
-            result = conn.execute(text("PRAGMA table_info(nonprofits)"))
+            result = conn.execute(text(f'PRAGMA table_info("{table_name}")'))
             columns = result.fetchall()
             fields = []
             for col in columns:
@@ -147,7 +155,7 @@ async def get_available_fields():
                     "default": col[4],
                     "primary_key": bool(col[5])
                 })
-            return {"fields": fields, "count": len(fields)}
+            return {"dataset": dataset, "table": table_name, "fields": fields, "count": len(fields)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get field information: {str(e)}")
 
