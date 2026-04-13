@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
-import sqlite3
+from db_utils import get_connection, get_table_columns, resolve_table_name
 
 router = APIRouter()
 
@@ -17,6 +17,7 @@ class FilterRequest(BaseModel):
     offset: int = 0
     order_by: Optional[str] = None
     order_direction: str = "ASC"
+    dataset: str = "default"
 
 def build_sql_condition(condition: FilterCondition) -> tuple:
     """
@@ -92,6 +93,9 @@ async def advanced_filter(request: FilterRequest):
         
         if request.logic not in ["AND", "OR"]:
             raise HTTPException(status_code=400, detail="Logic operator must be AND or OR")
+
+        table_name = resolve_table_name(request.dataset)
+        available_columns = set(get_table_columns(table_name))
         
         # Validate field names (updated to standardized columns)
         valid_fields = [
@@ -100,6 +104,7 @@ async def advanced_filter(request: FilterRequest):
             'fiscal_year',   # standardized fiscal year
             'fiscal_month'   # standardized fiscal end month
         ]
+        valid_fields = [field for field in valid_fields if field in available_columns]
         
         for condition in request.conditions:
             if condition.field not in valid_fields:
@@ -134,7 +139,7 @@ async def advanced_filter(request: FilterRequest):
         
         # Execute query
         sql = f"""
-        SELECT * FROM nonprofits 
+        SELECT * FROM "{table_name}" 
         WHERE {where_clause}
         {order_clause}
         LIMIT ? OFFSET ?
@@ -142,30 +147,29 @@ async def advanced_filter(request: FilterRequest):
         
         params.extend([request.limit, request.offset])
         
-        conn = sqlite3.connect('irs.db')
+        conn = get_connection()
         cursor = conn.cursor()
         
         cursor.execute(sql, params)
         results = cursor.fetchall()
+        result_columns = [description[0] for description in cursor.description]
         
         # Get total count
-        count_sql = f"SELECT COUNT(*) FROM nonprofits WHERE {where_clause}"
+        count_sql = f'SELECT COUNT(*) FROM "{table_name}" WHERE {where_clause}'
         cursor.execute(count_sql, params[:-2])  # Remove LIMIT and OFFSET params
         total_count = cursor.fetchone()[0]
-        
-        # Get column names
-        columns = [description[0] for description in cursor.description]
         
         # Convert to dictionary list
         nonprofits = []
         for row in results:
-            nonprofit = dict(zip(columns, row))
+            nonprofit = dict(zip(result_columns, row))
             nonprofits.append(nonprofit)
         
         conn.close()
         
         return {
             "success": True,
+            "dataset": request.dataset,
             "total_count": total_count,
             "filtered_count": len(nonprofits),
             "limit": request.limit,
@@ -173,69 +177,74 @@ async def advanced_filter(request: FilterRequest):
             "has_more": (request.offset + request.limit) < total_count,
             "results": nonprofits
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/filter/fields")
-async def get_filter_fields():
+async def get_filter_fields(dataset: str = "default"):
     """
     Get available filter field information
     """
+    table_name = resolve_table_name(dataset)
+    available_columns = set(get_table_columns(table_name))
+    field_definitions = {
+        "campus": {
+            "type": "string",
+            "description": "Organization name",
+            "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
+        },
+        "address": {
+            "type": "string",
+            "description": "Address",
+            "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
+        },
+        "city": {
+            "type": "string",
+            "description": "City",
+            "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
+        },
+        "st": {
+            "type": "string",
+            "description": "State",
+            "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
+        },
+        "zip": {
+            "type": "string",
+            "description": "ZIP code",
+            "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
+        },
+        "part_i_summary_12_total_revenue_cy": {
+            "type": "number",
+            "description": "Current year total revenue",
+            "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
+        },
+        "employees": {
+            "type": "number",
+            "description": "Number of employees",
+            "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
+        },
+        "ein": {
+            "type": "string",
+            "description": "Employer Identification Number",
+            "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
+        },
+        "fiscal_year": {
+            "type": "number",
+            "description": "Fiscal year (standardized calendar year, e.g. 2023)",
+            "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "in", "not_in", "is_null", "is_not_null"]
+        },
+        "fiscal_month": {
+            "type": "number",
+            "description": "Fiscal end month (standardized month number, 1-12)",
+            "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
+        }
+    }
     return {
         "success": True,
-        "fields": {
-            "campus": {
-                "type": "string",
-                "description": "Organization name",
-                "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
-            },
-            "address": {
-                "type": "string", 
-                "description": "Address",
-                "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
-            },
-            "city": {
-                "type": "string",
-                "description": "City",
-                "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
-            },
-            "st": {
-                "type": "string",
-                "description": "State",
-                "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
-            },
-            "zip": {
-                "type": "string",
-                "description": "ZIP code",
-                "operators": ["equals", "not_equals", "contains", "in", "not_in", "is_null", "is_not_null"]
-            },
-            "part_i_summary_12_total_revenue_cy": {
-                "type": "number",
-                "description": "Current year total revenue",
-                "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
-            },
-            "employees": {
-                "type": "number", 
-                "description": "Number of employees",
-                "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "is_null", "is_not_null"]
-            },
-            "ein": {
-                "type": "string",
-                "description": "Employer Identification Number",
-                "operators": ["equals", "not_equals", "contains", "is_null", "is_not_null"]
-            },
-            "fiscal_year": {
-                "type": "number",
-                "description": "Fiscal year (standardized calendar year, e.g. 2023)",
-                "operators": ["equals", "not_equals", "greater_than", "less_than", "greater_equal", "less_equal", "between", "in", "not_in", "is_null", "is_not_null"]
-            },
-            "fiscal_month": {
-                "type": "number",
-                "description": "Fiscal end month (standardized month number, 1-12)",
-                "operators": ["equals", "not_equals", "in", "not_in", "is_null", "is_not_null"]
-            }
-        },
+        "dataset": dataset,
+        "fields": {name: config for name, config in field_definitions.items() if name in available_columns},
         "logic_operators": ["AND", "OR"],
         "order_directions": ["ASC", "DESC"]
     }
@@ -309,6 +318,65 @@ async def get_filter_examples():
         ]
     } 
 
+@router.get("/filter/revenue-bands")
+async def get_revenue_bands(
+    fiscal_year: int,
+    fiscal_month: Optional[int] = None,
+    dataset: str = "default",
+):
+    """
+    Build 5M revenue bands up to the maximum available revenue for the selected scope.
+    """
+    try:
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        conditions = ["fiscal_year = ?", "part_i_summary_12_total_revenue_cy IS NOT NULL", "part_i_summary_12_total_revenue_cy >= 0"]
+        params = [fiscal_year]
+
+        if fiscal_month is not None:
+            conditions.append("fiscal_month = ?")
+            params.append(fiscal_month)
+
+        where_clause = " AND ".join(conditions)
+        cursor.execute(
+            f'SELECT MAX(part_i_summary_12_total_revenue_cy) FROM "{table_name}" WHERE {where_clause}',
+            params,
+        )
+        max_revenue = cursor.fetchone()[0] or 0
+        conn.close()
+
+        band_size = 5_000_000
+        band_ceiling = band_size if max_revenue <= 0 else int(((max_revenue + band_size - 1) // band_size) * band_size)
+
+        bands = []
+        for start in range(0, band_ceiling, band_size):
+            end = start + band_size
+            max_value = end - 1 if end < max_revenue else max_revenue
+            bands.append(
+                {
+                    "key": f"{start}-{end}",
+                    "label": f"{start // 1_000_000}-{end // 1_000_000}M",
+                    "min_revenue": start,
+                    "max_revenue": max_value,
+                }
+            )
+
+        return {
+            "success": True,
+            "dataset": dataset,
+            "fiscal_year": fiscal_year,
+            "fiscal_month": fiscal_month,
+            "band_size": band_size,
+            "max_revenue": max_revenue,
+            "bands": bands,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/filter/enhanced")
 async def enhanced_filter_for_frontend(
     request: dict = Body(...)
@@ -324,11 +392,15 @@ async def enhanced_filter_for_frontend(
         geo_filters = request.get('geo_filters')
         financial_filters = request.get('financial_filters')
         operational_filters = request.get('operational_filters')
+        workforce_filters = request.get('workforce_filters')
+        filing_filters = request.get('filing_filters')
+        dataset = request.get('dataset', 'default')
         
         if not fiscal_year:
             raise HTTPException(status_code=400, detail="Fiscal year is required")
         
-        conn = sqlite3.connect('irs.db')
+        table_name = resolve_table_name(dataset)
+        conn = get_connection()
         cursor = conn.cursor()
         
         conditions = []
@@ -353,7 +425,7 @@ async def enhanced_filter_for_frontend(
             city_value = geo_filters.get('city')
             if city_value:
                 conditions.append("city = ?")
-                params.append(city_value.upper())
+                params.append(city_value)
         
         # Financial filters
         if financial_filters:
@@ -365,21 +437,39 @@ async def enhanced_filter_for_frontend(
                 conditions.append("part_i_summary_12_total_revenue_cy <= ?")
                 params.append(financial_filters['max_revenue'])
         
-        # Operational filters (assuming there's an ILU field or similar)
+        # Operational filters kept for backward compatibility with the older frontend.
         if operational_filters:
             if operational_filters.get('min_ilu') is not None:
-                # Note: You may need to adjust the field name based on your actual database schema
-                conditions.append("employees >= ?")  # Using employees as a proxy for operational scale
+                conditions.append("employees >= ?")
                 params.append(operational_filters['min_ilu'])
             
             if operational_filters.get('max_ilu') is not None:
                 conditions.append("employees <= ?")
                 params.append(operational_filters['max_ilu'])
+
+        # Workforce filters for ProPublica-first query flow.
+        if workforce_filters:
+            if workforce_filters.get('min_employees') is not None:
+                conditions.append("employees >= ?")
+                params.append(workforce_filters['min_employees'])
+
+            if workforce_filters.get('max_employees') is not None:
+                conditions.append("employees <= ?")
+                params.append(workforce_filters['max_employees'])
+
+        # Filing filters for ProPublica form type selection.
+        if filing_filters:
+            form_types = filing_filters.get('form_types') or []
+            normalized_form_types = [str(form_type).strip() for form_type in form_types if str(form_type).strip()]
+            if normalized_form_types:
+                placeholders = ", ".join(["?" for _ in normalized_form_types])
+                conditions.append(f"propublica_form_type IN ({placeholders})")
+                params.extend(normalized_form_types)
         
         where_clause = " AND ".join(conditions)
         
         sql = f"""
-        SELECT * FROM nonprofits 
+        SELECT * FROM "{table_name}" 
         WHERE {where_clause}
         ORDER BY part_i_summary_12_total_revenue_cy DESC, campus
         LIMIT 1000
@@ -401,9 +491,11 @@ async def enhanced_filter_for_frontend(
         
         return {
             "success": True,
+            "dataset": dataset,
             "count": len(nonprofits),
             "results": nonprofits
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

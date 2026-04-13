@@ -9,6 +9,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
 REPORT_DIR = OUTPUT_DIR / "reports"
 TARGET_CSV = SCRIPT_DIR.parent / "backend" / "data" / "nonprofits_100.csv"
+FORM_TYPE_CODE_MAP = {
+    "0": "990",
+    "0.0": "990",
+    "1": "990EO",
+    "1.0": "990EO",
+    "2": "990PF",
+    "2.0": "990PF",
+}
 
 
 def latest_matching_file(pattern: str) -> Path:
@@ -39,10 +47,19 @@ def load_targets(path: Path) -> pd.DataFrame:
 
 
 def load_filings(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path, dtype={"ein": str})
+    df = pd.read_csv(path, dtype={"ein": str, "form_type": str})
     df["ein"] = normalize_ein_series(df["ein"])
     df["tax_year"] = pd.to_numeric(df["tax_year"], errors="coerce").astype("Int64")
     df["filing_date"] = pd.to_datetime(df["filing_date"], errors="coerce")
+    if "form_type" in df.columns:
+        df["form_type"] = (
+            df["form_type"]
+            .where(df["form_type"].notna(), "")
+            .astype(str)
+            .str.strip()
+            .replace({"nan": "", "None": ""})
+            .replace(FORM_TYPE_CODE_MAP)
+        )
     numeric_cols = ["total_revenue", "total_expenses", "total_assets", "net_assets", "employee_count"]
     for col in numeric_cols:
         if col in df.columns:

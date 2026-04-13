@@ -8,6 +8,14 @@ import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = SCRIPT_DIR / "output" / "propublica"
+FORM_TYPE_CODE_MAP = {
+    "0": "990",
+    "0.0": "990",
+    "1": "990EO",
+    "1.0": "990EO",
+    "2": "990PF",
+    "2.0": "990PF",
+}
 
 
 def latest_matching_file(pattern: str) -> Path:
@@ -31,6 +39,15 @@ def parse_fiscal_month(value) -> Optional[int]:
         except ValueError:
             return None
     return None
+
+
+def normalize_form_type(value) -> str:
+    if pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if text in {"", "nan", "None"}:
+        return ""
+    return FORM_TYPE_CODE_MAP.get(text, text)
 
 
 def build_backend_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
@@ -58,7 +75,7 @@ def build_backend_snapshot(snapshot_df: pd.DataFrame) -> pd.DataFrame:
                 df["net_assets"], errors="coerce"
             ),
             "employees": pd.to_numeric(df["employee_count"], errors="coerce"),
-            "propublica_form_type": df["form_type"],
+            "propublica_form_type": df["form_type"].apply(normalize_form_type),
             "propublica_filing_date": df["filing_date"],
             "propublica_tax_prd": df["tax_prd"],
             "propublica_record_status": df["record_status"],
