@@ -127,7 +127,7 @@ const ManualsPage = () => {
     },
     {
       title: 'Data Updates',
-      content: 'Data is sourced from IRS public data and updated regularly. The current version contains 2023 data.'
+      content: 'Data is sourced from IRS public data and updated regularly. The ProPublica query dataset currently covers fiscal years 2010 through 2024.'
     }
   ];
 
@@ -220,7 +220,7 @@ const ManualsPage = () => {
             },
             {
               question: 'What is the data update frequency?',
-              answer: 'Data is updated regularly. The current version contains 2023 data.'
+              answer: 'Data is updated regularly. The ProPublica query dataset currently covers fiscal years 2010 through 2024.'
             }
           ]}
           renderItem={(item) => (

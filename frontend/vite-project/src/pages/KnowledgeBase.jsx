@@ -35,7 +35,7 @@ const KnowledgeBase = () => {
         },
         {
           question: 'How frequently is the data updated?',
-          answer: 'Data is sourced from IRS public data and is typically updated annually. The current version contains 2023 data.'
+          answer: 'Data is sourced from IRS public data and is typically updated annually. The ProPublica query dataset currently covers fiscal years 2010 through 2024.'
         },
         {
           question: 'What organizations are covered in the data?',
