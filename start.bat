@@ -13,11 +13,12 @@ echo.
 ::  2. 检查端口是否被占用 (核心改进)
 :: =================================================================
 echo [STEP 1/4] Checking for running services on ports 8000 and 5173...
+:: 只匹配 LISTENING 且本地端口后有空格，避免 :80001 误匹配 :8000、以及误取到外连行的 PID
 set "BACKEND_PORT_IN_USE="
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000"') do set "BACKEND_PORT_IN_USE=%%a"
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr "LISTENING" ^| findstr ":8000 "') do set "BACKEND_PORT_IN_USE=%%a"
 
 set "FRONTEND_PORT_IN_USE="
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":5173"') do set "FRONTEND_PORT_IN_USE=%%a"
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr "LISTENING" ^| findstr ":5173 "') do set "FRONTEND_PORT_IN_USE=%%a"
 
 if defined BACKEND_PORT_IN_USE (
     echo [ERROR] Backend port 8000 is already in use by PID: %BACKEND_PORT_IN_USE%.
