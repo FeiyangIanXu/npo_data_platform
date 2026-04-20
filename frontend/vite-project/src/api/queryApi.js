@@ -60,9 +60,17 @@ export async function getAvailableCities(fiscalYear, state) {
   return response.data;
 }
 
-export async function getRevenueBands(fiscalYear, fiscalMonth = null) {
+export async function getRevenueBands(fiscalYears, fiscalMonth = null) {
+  const fiscalYearList = Array.isArray(fiscalYears) ? fiscalYears : [fiscalYears];
+  const params = {
+    fiscal_years: fiscalYearList.filter(Boolean).join(','),
+  };
+  if (fiscalMonth !== null && fiscalMonth !== undefined) {
+    params.fiscal_month = fiscalMonth;
+  }
+
   const response = await apiClient.get('/filter/revenue-bands', {
-    params: withDataset({ fiscal_year: fiscalYear, fiscal_month: fiscalMonth }),
+    params: withDataset(params),
   });
   return response.data;
 }

@@ -65,7 +65,7 @@ const STEP_ITEMS = [
 function createInitialSession() {
   return {
     dataset: QUERY_DATASET,
-    fiscalYear: null,
+    fiscalYears: [],
     fiscalMonth: null,
     filterMode: 'criteria',
     geoFilters: { st: null, city: null },
@@ -209,6 +209,7 @@ function QueryForm() {
   const [availableCities, setAvailableCities] = useState([]);
   const [availableRevenueBands, setAvailableRevenueBands] = useState([]);
   const [availableFields, setAvailableFields] = useState([]);
+  const [revenueBandsAvailable, setRevenueBandsAvailable] = useState(true);
   const [loadingYears, setLoadingYears] = useState(true);
   const [loadingFields, setLoadingFields] = useState(true);
   const [loadingOptions, setLoadingOptions] = useState({ months: false, states: false, cities: false, revenueBands: false });
@@ -273,7 +274,7 @@ function QueryForm() {
   }, [availableFields]);
 
   useEffect(() => {
-    if (!querySession.fiscalYear) {
+    if (querySession.fiscalYears.length === 0) {
       setAvailableMonths([]);
       setAvailableStates([]);
       setAvailableCities([]);
@@ -284,12 +285,12 @@ function QueryForm() {
     const loadYearBoundOptions = async () => {
       try {
         setLoadingOptions((previousState) => ({ ...previousState, months: true, states: true }));
-        const [monthsResponse, statesResponse] = await Promise.all([
-          getAvailableMonths(querySession.fiscalYear),
-          getAvailableStates(querySession.fiscalYear),
+        const [monthResponses, stateResponses] = await Promise.all([
+          Promise.all(querySession.fiscalYears.map((year) => getAvailableMonths(year))),
+          Promise.all(querySession.fiscalYears.map((year) => getAvailableStates(year))),
         ]);
-        const nextMonths = monthsResponse.months || [];
-        const nextStates = statesResponse.states || [];
+        const nextMonths = Array.from(new Set(monthResponses.flatMap((response) => response.months || []))).sort((a, b) => a - b);
+        const nextStates = Array.from(new Set(stateResponses.flatMap((response) => response.states || []))).sort();
         setAvailableMonths(nextMonths);
         setAvailableStates(nextStates);
 
@@ -317,10 +318,10 @@ function QueryForm() {
     };
 
     loadYearBoundOptions();
-  }, [querySession.fiscalYear]);
+  }, [querySession.fiscalYears]);
 
   useEffect(() => {
-    if (!querySession.fiscalYear || !querySession.geoFilters.st) {
+    if (querySession.fiscalYears.length === 0 || !querySession.geoFilters.st) {
       setAvailableCities([]);
       setQuerySession((previousSession) => {
         if (previousSession.geoFilters.city === null) {
@@ -340,8 +341,10 @@ function QueryForm() {
     const loadCities = async () => {
       try {
         setLoadingOptions((previousState) => ({ ...previousState, cities: true }));
-        const response = await getAvailableCities(querySession.fiscalYear, querySession.geoFilters.st);
-        const nextCities = response.cities || [];
+        const responses = await Promise.all(
+          querySession.fiscalYears.map((year) => getAvailableCities(year, querySession.geoFilters.st))
+        );
+        const nextCities = Array.from(new Set(responses.flatMap((response) => response.cities || []))).sort();
         setAvailableCities(nextCities);
 
         setQuerySession((previousSession) => {
@@ -365,10 +368,10 @@ function QueryForm() {
     };
 
     loadCities();
-  }, [querySession.fiscalYear, querySession.geoFilters.st]);
+  }, [querySession.fiscalYears, querySession.geoFilters.st]);
 
   useEffect(() => {
-    if (!querySession.fiscalYear) {
+    if (querySession.fiscalYears.length === 0) {
       setAvailableRevenueBands([]);
       return;
     }
@@ -376,9 +379,10 @@ function QueryForm() {
     const loadRevenueBands = async () => {
       try {
         setLoadingOptions((previousState) => ({ ...previousState, revenueBands: true }));
-        const response = await getRevenueBands(querySession.fiscalYear, querySession.fiscalMonth);
+        const response = await getRevenueBands(querySession.fiscalYears, querySession.fiscalMonth);
         const nextBands = response.bands || [];
         setAvailableRevenueBands(nextBands);
+        setRevenueBandsAvailable(true);
 
         setQuerySession((previousSession) => {
           const currentBandExists = nextBands.some((band) => band.key === previousSession.financialFilters.revenue_band_key);
@@ -397,14 +401,16 @@ function QueryForm() {
         });
       } catch (error) {
         console.error('Failed to load revenue bands:', error);
-        message.error('Failed to load revenue bands for the selected time scope.');
+        setAvailableRevenueBands([]);
+        setRevenueBandsAvailable(false);
+        message.warning('Revenue bands are unavailable for this scope. You can enter a custom revenue range instead.');
       } finally {
         setLoadingOptions((previousState) => ({ ...previousState, revenueBands: false }));
       }
     };
 
     loadRevenueBands();
-  }, [querySession.fiscalYear, querySession.fiscalMonth]);
+  }, [querySession.fiscalYears, querySession.fiscalMonth]);
 
   const selectedOrganizations = querySession.candidateResults.filter((organization) =>
     querySession.selectedEins.includes(organization.ein)
@@ -464,16 +470,16 @@ function QueryForm() {
   };
 
   const handleTimeStepNext = () => {
-    if (!querySession.fiscalYear) {
-      message.warning('Please select a fiscal year before continuing.');
+    if (querySession.fiscalYears.length === 0) {
+      message.warning('Please select at least one fiscal year before continuing.');
       return;
     }
     setCurrentStep(1);
   };
 
   const handleStep2Submit = async () => {
-    if (!querySession.fiscalYear) {
-      message.warning('Fiscal year is required.');
+    if (querySession.fiscalYears.length === 0) {
+      message.warning('At least one fiscal year is required.');
       return;
     }
 
@@ -483,7 +489,7 @@ function QueryForm() {
 
       if (querySession.filterMode === 'criteria') {
         const payload = {
-          fiscal_year: querySession.fiscalYear,
+          fiscal_years: querySession.fiscalYears,
           fiscal_month: querySession.fiscalMonth,
         };
 
@@ -524,7 +530,7 @@ function QueryForm() {
         }
 
         const response = await batchSearchOrganizations({
-          fiscal_year: querySession.fiscalYear,
+          fiscal_years: querySession.fiscalYears,
           fiscal_month: querySession.fiscalMonth,
           search_terms: searchTerms,
           search_type: querySession.searchType,
@@ -662,8 +668,8 @@ function QueryForm() {
         return (
           <Card title="Step 1: Select Time Range" className="query-step-card">
             <Paragraph>
-              This validation flow is locked to the ProPublica dataset. Start by choosing the fiscal year,
-              then optionally narrow to a fiscal end month.
+              This validation flow is locked to the ProPublica dataset. Start by choosing one or more fiscal years,
+              then optionally narrow to a shared fiscal end month.
             </Paragraph>
 
             <Alert
@@ -676,15 +682,17 @@ function QueryForm() {
 
             <Row gutter={[16, 16]}>
               <Col xs={24} md={12}>
-                <Text strong>Fiscal Year</Text>
+                <Text strong>Fiscal Years</Text>
                 <Select
+                  mode="multiple"
                   style={{ width: '100%', marginTop: 8 }}
-                  placeholder="Select fiscal year"
-                  value={querySession.fiscalYear}
+                  placeholder="Select one or more fiscal years"
+                  value={querySession.fiscalYears}
                   onChange={(value) => {
+                    const nextYears = [...value].sort((a, b) => b - a);
                     updateSession((previousSession) => ({
                       ...previousSession,
-                      fiscalYear: value,
+                      fiscalYears: nextYears,
                       fiscalMonth: null,
                       geoFilters: { st: null, city: null },
                       financialFilters: { revenue_band_key: null, min_revenue: null, max_revenue: null },
@@ -712,7 +720,7 @@ function QueryForm() {
                   }}
                   allowClear
                   loading={loadingOptions.months}
-                  disabled={!querySession.fiscalYear}
+                  disabled={querySession.fiscalYears.length === 0}
                   options={availableMonths.map((month) => ({ label: `${month} (${monthToName(month)})`, value: month }))}
                 />
               </Col>
@@ -720,8 +728,8 @@ function QueryForm() {
 
             <Descriptions bordered size="small" style={{ marginTop: 24 }}>
               <Descriptions.Item label="Dataset">{querySession.dataset}</Descriptions.Item>
-              <Descriptions.Item label="Fiscal Year">
-                {querySession.fiscalYear ? `FY ${querySession.fiscalYear}` : '-'}
+              <Descriptions.Item label="Fiscal Years">
+                {querySession.fiscalYears.length > 0 ? querySession.fiscalYears.map((year) => `FY ${year}`).join(', ') : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="Fiscal Month">
                 {querySession.fiscalMonth ? `${querySession.fiscalMonth} (${monthToName(querySession.fiscalMonth)})` : 'Any'}
@@ -729,7 +737,7 @@ function QueryForm() {
             </Descriptions>
 
             <div className="query-step-actions">
-              <Button type="primary" onClick={handleTimeStepNext} disabled={!querySession.fiscalYear}>
+              <Button type="primary" onClick={handleTimeStepNext} disabled={querySession.fiscalYears.length === 0}>
                 Next Step
               </Button>
               <Button onClick={() => navigate('/')}>Back to Home</Button>
@@ -799,38 +807,77 @@ function QueryForm() {
                 </Card>
 
                 <Card size="small" title="Financials">
-                  <Text strong>Financial Scale Band</Text>
-                  <Select
-                    style={{ width: '100%', marginTop: 8 }}
-                    placeholder="Any revenue band"
-                    value={querySession.financialFilters.revenue_band_key}
-                    allowClear
-                    loading={loadingOptions.revenueBands}
-                    onChange={(value) => {
-                      const selectedBand = availableRevenueBands.find((band) => band.key === value);
-                      updateSession((previousSession) => ({
-                        ...previousSession,
-                        financialFilters: selectedBand
-                          ? {
-                              revenue_band_key: selectedBand.key,
-                              min_revenue: selectedBand.min_revenue,
-                              max_revenue: selectedBand.max_revenue,
-                            }
-                          : {
-                              revenue_band_key: null,
-                              min_revenue: null,
-                              max_revenue: null,
-                            },
-                      }));
-                    }}
-                    options={availableRevenueBands.map((band) => ({
-                      label: formatRevenueBandLabel(band),
-                      value: band.key,
-                    }))}
-                  />
-                  <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                    5M revenue increments are generated dynamically up to the maximum revenue in the selected time scope.
-                  </Text>
+                  {revenueBandsAvailable ? (
+                    <>
+                      <Text strong>Financial Scale Band</Text>
+                      <Select
+                        style={{ width: '100%', marginTop: 8 }}
+                        placeholder="Any revenue band"
+                        value={querySession.financialFilters.revenue_band_key}
+                        allowClear
+                        loading={loadingOptions.revenueBands}
+                        onChange={(value) => {
+                          const selectedBand = availableRevenueBands.find((band) => band.key === value);
+                          updateSession((previousSession) => ({
+                            ...previousSession,
+                            financialFilters: selectedBand
+                              ? {
+                                  revenue_band_key: selectedBand.key,
+                                  min_revenue: selectedBand.min_revenue,
+                                  max_revenue: selectedBand.max_revenue,
+                                }
+                              : {
+                                  revenue_band_key: null,
+                                  min_revenue: null,
+                                  max_revenue: null,
+                                },
+                          }));
+                        }}
+                        options={availableRevenueBands.map((band) => ({
+                          label: formatRevenueBandLabel(band),
+                          value: band.key,
+                        }))}
+                      />
+                      <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                        5M revenue increments are generated dynamically up to the maximum revenue in the selected time scope.
+                      </Text>
+                    </>
+                  ) : (
+                    <Row gutter={[16, 16]}>
+                      <Col xs={24} md={12}>
+                        <Text strong>Minimum Revenue</Text>
+                        <InputNumber
+                          style={{ width: '100%', marginTop: 8 }}
+                          placeholder="e.g. 1000000"
+                          value={querySession.financialFilters.min_revenue}
+                          formatter={(value) => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                          parser={(value) => value?.replace(/\$\s?|(,*)/g, '') ?? ''}
+                          onChange={(value) => {
+                            updateSession((previousSession) => ({
+                              ...previousSession,
+                              financialFilters: { ...previousSession.financialFilters, revenue_band_key: null, min_revenue: value },
+                            }));
+                          }}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong>Maximum Revenue</Text>
+                        <InputNumber
+                          style={{ width: '100%', marginTop: 8 }}
+                          placeholder="e.g. 50000000"
+                          value={querySession.financialFilters.max_revenue}
+                          formatter={(value) => value ? `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : ''}
+                          parser={(value) => value?.replace(/\$\s?|(,*)/g, '') ?? ''}
+                          onChange={(value) => {
+                            updateSession((previousSession) => ({
+                              ...previousSession,
+                              financialFilters: { ...previousSession.financialFilters, revenue_band_key: null, max_revenue: value },
+                            }));
+                          }}
+                        />
+                      </Col>
+                    </Row>
+                  )}
                 </Card>
 
                 <Card size="small" title="Workforce">
@@ -1033,7 +1080,7 @@ function QueryForm() {
             <Descriptions bordered size="small" column={1} style={{ marginBottom: 24 }}>
               <Descriptions.Item label="Dataset">{querySession.dataset}</Descriptions.Item>
               <Descriptions.Item label="Fiscal Scope">
-                {querySession.fiscalYear ? `FY ${querySession.fiscalYear}` : '-'}
+                {querySession.fiscalYears.length > 0 ? querySession.fiscalYears.map((year) => `FY ${year}`).join(', ') : '-'}
                 {querySession.fiscalMonth ? `, month ${querySession.fiscalMonth} (${monthToName(querySession.fiscalMonth)})` : ', all months'}
               </Descriptions.Item>
               <Descriptions.Item label="Selected Organizations">{querySession.selectedEins.length}</Descriptions.Item>
