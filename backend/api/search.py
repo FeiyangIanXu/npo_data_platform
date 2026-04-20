@@ -5,6 +5,24 @@ from db_utils import get_connection, get_table_columns, resolve_table_name
 
 router = APIRouter()
 
+def normalize_fiscal_years(value):
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        raw_values = value
+    elif isinstance(value, str):
+        raw_values = value.split(",")
+    else:
+        raw_values = [value]
+
+    fiscal_years = []
+    for raw_value in raw_values:
+        if raw_value is None or str(raw_value).strip() == "":
+            continue
+        fiscal_years.append(int(raw_value))
+    return sorted(set(fiscal_years), reverse=True)
+
 def search_nonprofits(query: str, fields: Optional[List[str]] = None, limit: int = 50, dataset: str = "default"):
     """
     Search nonprofit organization data
@@ -365,13 +383,19 @@ async def batch_search_api(
     """
     try:
         fiscal_year = request.get('fiscal_year')
+        fiscal_years = request.get('fiscal_years')
         fiscal_month = request.get('fiscal_month')
         search_terms = request.get('search_terms', [])
         search_type = request.get('search_type', 'name')  # 'name' or 'ein'
         dataset = request.get('dataset', 'default')
         
-        if not fiscal_year:
-            raise HTTPException(status_code=400, detail="Fiscal year is required")
+        selected_years = normalize_fiscal_years(fiscal_years)
+        if fiscal_year is not None:
+            selected_years.extend(normalize_fiscal_years(fiscal_year))
+            selected_years = sorted(set(selected_years), reverse=True)
+
+        if not selected_years:
+            raise HTTPException(status_code=400, detail="At least one fiscal year is required")
         
         if not search_terms:
             raise HTTPException(status_code=400, detail="Search terms are required")
@@ -386,7 +410,7 @@ async def batch_search_api(
         print(f"=== BATCH SEARCH DEBUG ===")
         print(f"Search type: {search_type}")
         print(f"Search terms: {search_terms}")
-        print(f"Fiscal year: {fiscal_year}")
+        print(f"Fiscal years: {selected_years}")
         print(f"Fiscal month: {fiscal_month}")
         print(f"=========================")
         
@@ -400,8 +424,9 @@ async def batch_search_api(
             params = []
             
             # Add fiscal year condition
-            conditions.append("fiscal_year = ?")
-            params.append(fiscal_year)
+            year_placeholders = ", ".join(["?" for _ in selected_years])
+            conditions.append(f"fiscal_year IN ({year_placeholders})")
+            params.extend(selected_years)
             
             # Add fiscal month condition if provided
             if fiscal_month:
@@ -474,6 +499,7 @@ async def batch_search_api(
         return {
             "success": True,
             "dataset": dataset,
+            "fiscal_years": selected_years,
             "count": len(all_results),
             "results": all_results,
             "search_type": search_type

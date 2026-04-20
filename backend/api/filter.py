@@ -5,6 +5,24 @@ from db_utils import get_connection, get_table_columns, resolve_table_name
 
 router = APIRouter()
 
+def normalize_fiscal_years(value: Any) -> List[int]:
+    if value is None:
+        return []
+
+    if isinstance(value, list):
+        raw_values = value
+    elif isinstance(value, str):
+        raw_values = value.split(",")
+    else:
+        raw_values = [value]
+
+    fiscal_years = []
+    for raw_value in raw_values:
+        if raw_value is None or str(raw_value).strip() == "":
+            continue
+        fiscal_years.append(int(raw_value))
+    return sorted(set(fiscal_years), reverse=True)
+
 class FilterCondition(BaseModel):
     field: str
     operator: str  # equals, not_equals, contains, in, not_in, greater_than, less_than, between
@@ -320,7 +338,8 @@ async def get_filter_examples():
 
 @router.get("/filter/revenue-bands")
 async def get_revenue_bands(
-    fiscal_year: int,
+    fiscal_year: Optional[int] = None,
+    fiscal_years: Optional[str] = None,
     fiscal_month: Optional[int] = None,
     dataset: str = "default",
 ):
@@ -328,12 +347,24 @@ async def get_revenue_bands(
     Build 5M revenue bands up to the maximum available revenue for the selected scope.
     """
     try:
+        selected_years = normalize_fiscal_years(fiscal_years)
+        if fiscal_year is not None:
+            selected_years.extend(normalize_fiscal_years(fiscal_year))
+            selected_years = sorted(set(selected_years), reverse=True)
+        if not selected_years:
+            raise HTTPException(status_code=400, detail="At least one fiscal year is required")
+
         table_name = resolve_table_name(dataset)
         conn = get_connection()
         cursor = conn.cursor()
 
-        conditions = ["fiscal_year = ?", "part_i_summary_12_total_revenue_cy IS NOT NULL", "part_i_summary_12_total_revenue_cy >= 0"]
-        params = [fiscal_year]
+        year_placeholders = ", ".join(["?" for _ in selected_years])
+        conditions = [
+            f"fiscal_year IN ({year_placeholders})",
+            "part_i_summary_12_total_revenue_cy IS NOT NULL",
+            "part_i_summary_12_total_revenue_cy >= 0",
+        ]
+        params = list(selected_years)
 
         if fiscal_month is not None:
             conditions.append("fiscal_month = ?")
@@ -366,7 +397,7 @@ async def get_revenue_bands(
         return {
             "success": True,
             "dataset": dataset,
-            "fiscal_year": fiscal_year,
+            "fiscal_years": selected_years,
             "fiscal_month": fiscal_month,
             "band_size": band_size,
             "max_revenue": max_revenue,
@@ -388,6 +419,7 @@ async def enhanced_filter_for_frontend(
     try:
         # Extract values from request body
         fiscal_year = request.get('fiscal_year')
+        fiscal_years = request.get('fiscal_years')
         fiscal_month = request.get('fiscal_month')
         geo_filters = request.get('geo_filters')
         financial_filters = request.get('financial_filters')
@@ -396,8 +428,13 @@ async def enhanced_filter_for_frontend(
         filing_filters = request.get('filing_filters')
         dataset = request.get('dataset', 'default')
         
-        if not fiscal_year:
-            raise HTTPException(status_code=400, detail="Fiscal year is required")
+        selected_years = normalize_fiscal_years(fiscal_years)
+        if fiscal_year is not None:
+            selected_years.extend(normalize_fiscal_years(fiscal_year))
+            selected_years = sorted(set(selected_years), reverse=True)
+
+        if not selected_years:
+            raise HTTPException(status_code=400, detail="At least one fiscal year is required")
         
         table_name = resolve_table_name(dataset)
         conn = get_connection()
@@ -406,9 +443,10 @@ async def enhanced_filter_for_frontend(
         conditions = []
         params = []
         
-        # Always filter by fiscal year
-        conditions.append("fiscal_year = ?")
-        params.append(fiscal_year)
+        # Always filter by selected fiscal year(s).
+        year_placeholders = ", ".join(["?" for _ in selected_years])
+        conditions.append(f"fiscal_year IN ({year_placeholders})")
+        params.extend(selected_years)
         
         # Filter by fiscal month if provided
         if fiscal_month:
@@ -492,6 +530,7 @@ async def enhanced_filter_for_frontend(
         return {
             "success": True,
             "dataset": dataset,
+            "fiscal_years": selected_years,
             "count": len(nonprofits),
             "results": nonprofits
         }
